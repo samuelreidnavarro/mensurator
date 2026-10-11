@@ -6,7 +6,7 @@
     <title>MENSURATOR</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Noto+Music&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Noto+Music&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=IM+Fell+Double+Pica&family=Grenze+Gotisch:wght@400;500;600;700&display=swap">
     <style>
         :root {
             --bg: #fbf7ef;
@@ -78,6 +78,22 @@
 
         .bullet-time { filter: grayscale(0.85) contrast(1.05); }
         .alla-breve { filter: saturate(1.6) hue-rotate(-12deg); }
+
+        /* Paper-and-ink layer for the print themes; the game canvas underneath still takes the clicks */
+        #fxCanvas {
+            display: none; position: absolute; inset: 0; width: 100%; height: 100%;
+            pointer-events: none; border-radius: 3px;
+            box-shadow: 0 1px 2px rgba(40, 28, 16, 0.12), 0 10px 30px rgba(40, 28, 16, 0.12);
+            transition: filter 0.15s;
+        }
+        body:not([data-theme="modern"]) canvas#gameCanvas { border-radius: 3px; border-color: transparent; box-shadow: none; }
+        #canvasContainer:has(#gameCanvas.bullet-time) #fxCanvas { filter: grayscale(0.85) contrast(1.05); }
+        #canvasContainer:has(#gameCanvas.alla-breve) #fxCanvas { filter: saturate(1.6) hue-rotate(-12deg); }
+        #themeSelect {
+            display: block; width: 100%; margin-top: 8px; padding: 9px 12px;
+            font-family: inherit; font-size: 14px; font-weight: 600; color: var(--ink);
+            background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+        }
 
         .html-btn {
             display: flex; align-items: center; justify-content: center;
@@ -267,6 +283,16 @@
         <hr>
 
         <div class="slider-container">
+            <label for="themeSelect">Theme</label>
+            <select id="themeSelect" onchange="applyTheme(this.value)">
+                <option value="modern">Modern</option>
+                <option value="petrucci">Petrucci</option>
+                <option value="attaingnant">Attaingnant</option>
+                <option value="rubrica">Red &amp; Black</option>
+                <option value="manuscript">Manuscript</option>
+            </select>
+        </div>
+        <div class="slider-container">
             <label>Mensura (Game Speed) <span id="speedLabel" class="speed-name">Tempus perfectum prolatio minor</span>
             <input type="range" id="speedSlider" min="0" max="4" step="1" value="2" oninput="updateSpeedLabel()"></label>
         </div>
@@ -316,7 +342,7 @@
     const ctx = canvas.getContext('2d');
     // Logical game size is 800x400; the backing store is scaled for sharp rendering on high-density screens
     const W = 800, H = 400;
-    const DPR = Math.min(window.devicePixelRatio || 1, 3);
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = W * DPR; canvas.height = H * DPR;
     
     const pauseOverlay = document.getElementById('pauseOverlay');
@@ -527,17 +553,55 @@ let devInvincible = false;
         } catch (error) { console.log('Failed to add to Dreamlo:', error); }
     }
 
-    // --- Visual Style ---
-    const C = {
+    // --- Visual Style & Themes ---
+    const MODERN_COLORS = {
         bg: '#fbf7ef', paper: '#fffdf8', band: '#f1e8d8', ink: '#3b3125', inkSoft: '#5c4f3e', soft: '#8a7b66',
         line: '#e0d4c0', staff: '#d8cab2', mark: '#9c6b3c', red: '#b5473a', redHot: '#dc5a43', blue: '#3f6c9c',
         gold: '#c49a2c', silver: '#9a9a96', bronze: '#b07a4a'
     };
+    const C = Object.assign({}, MODERN_COLORS);
     const SANS = '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
     const MUSIC = '"Noto Music", "Segoe UI Symbol", "Apple Symbols", serif';
-    function font(size, weight = 400, italic = false) { return `${italic ? 'italic ' : ''}${weight} ${size}px ${SANS}`; }
+    const FELL = '"IM Fell English", "EB Garamond", Garamond, "Times New Roman", serif';
+    const FELL_SC = '"IM Fell English SC", ' + FELL;
+    const FELL_BIG = '"IM Fell Double Pica", ' + FELL;
+    const GOTH = '"Grenze Gotisch", "UnifrakturMaguntia", Garamond, serif';
+
+    // Each theme recolours the game and picks its type; print themes also get a paper-and-ink pass (see fx below)
+    const THEMES = {
+        modern: { name: 'Modern', colors: {}, ui: SANS, display: SANS, sc: SANS, scale: 1, weights: true, italic: true, pageBg: '#fbf7ef' },
+        petrucci: {
+            name: 'Petrucci', ui: FELL, display: FELL_BIG, sc: FELL_SC, scale: 1.14, weights: false, italic: true, print: true, initial: 'factotum', pageBg: '#efe6d3',
+            colors: { paper: '#ecdfc2', bg: '#ecdfc2', band: '#e3d4b3', ink: '#231a13', inkSoft: '#3b2d20', soft: '#5f4e3b', line: '#bfa77f', staff: '#231a13', mark: '#231a13', red: '#9e3424', redHot: '#c0402a', blue: '#2d4f86', gold: '#8c6a1e', silver: '#5f4e3b', bronze: '#9e3424' },
+            post: { mode: 1, paper: [236, 223, 194], grain: 0.5, density: 0.26, foxing: 0.07, laid: true }
+        },
+        attaingnant: {
+            name: 'Attaingnant', ui: FELL, display: FELL_BIG, sc: FELL_SC, scale: 1.14, weights: false, italic: true, print: true, segments: true, mono: true, initial: 'factotum', pageBg: '#f3f2ee',
+            colors: { paper: '#ffffff', bg: '#ffffff', band: '#ffffff', ink: '#000000', inkSoft: '#000000', soft: '#222222', line: '#000000', staff: '#000000', mark: '#000000', red: '#000000', redHot: '#000000', blue: '#000000', gold: '#000000', silver: '#000000', bronze: '#000000' },
+            post: { mode: 2, paper: [255, 255, 255], grain: 0.55, density: 0 }
+        },
+        rubrica: {
+            name: 'Red & Black', ui: FELL, display: FELL_BIG, sc: FELL_SC, scale: 1.14, weights: false, italic: true, print: true, initial: 'factotum', pageBg: '#efe6d3',
+            colors: { paper: '#f1e6cf', bg: '#f1e6cf', band: '#e8d9bb', ink: '#15100c', inkSoft: '#2a2018', soft: '#55453a', line: '#c9a291', staff: '#b32c1f', mark: '#b32c1f', red: '#b32c1f', redHot: '#d8381f', blue: '#1f3f80', gold: '#b32c1f', silver: '#55453a', bronze: '#55453a' },
+            post: { mode: 1, paper: [241, 230, 207], grain: 0.4, density: 0.16, foxing: 0.05, laid: true }
+        },
+        manuscript: {
+            name: 'Manuscript', ui: GOTH, display: GOTH, sc: GOTH, scale: 1.16, weights: true, italic: false, print: true, hand: true, white: true, initial: 'illuminated', pageBg: '#efe6d3',
+            colors: { paper: '#efe3c7', bg: '#efe3c7', band: '#e6d6b3', ink: '#3e2615', inkSoft: '#57381f', soft: '#7a5a3a', line: '#c8a888', staff: '#b63424', mark: '#b63424', red: '#b63424', redHot: '#d24a30', blue: '#2c4a9e', gold: '#b08a2e', silver: '#7a5a3a', bronze: '#57381f' },
+            post: { mode: 1, paper: [239, 227, 199], grain: 0.3, density: 0.32, foxing: 0.04, vellum: true }
+        }
+    };
+    const THEME_ORDER = ['modern', 'petrucci', 'attaingnant', 'rubrica', 'manuscript'];
+    let themeKey = 'modern', T = THEMES.modern;
+
+    function font(size, weight = 400, italic = false, role = 'ui') {
+        const fam = role === 'display' ? T.display : role === 'sc' ? T.sc : T.ui;
+        const w = T.weights ? Math.min(weight, T.hand ? 700 : 900) : 400;
+        return `${italic && T.italic ? 'italic ' : ''}${w} ${Math.round(size * T.scale)}px ${fam}`;
+    }
     function spacing(px) { if ('letterSpacing' in ctx) ctx.letterSpacing = px + 'px'; }
     function inRect(x, y, r) { return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; }
+    function rgba(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`; }
 
     function pill(x, y, w, h, fill, stroke, r = h / 2) {
         pathRoundRect(ctx, x, y, w, h, r);
@@ -545,26 +609,406 @@ let devInvincible = false;
         if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
     }
 
-    function veil(alpha = 0.94) { ctx.fillStyle = `rgba(251, 247, 239, ${alpha})`; ctx.fillRect(0, 0, W, H); }
+    function veil(alpha = 0.94) { ctx.fillStyle = rgba(C.paper, alpha); ctx.fillRect(0, 0, W, H); }
 
     // Title menu layout, shared by drawing and click handling
-    const MENU_BTNS = [
-        { x: 150, y: 160, w: 244, h: 56, label: 'Ars Antiqua (Classic)', primary: true, action: () => { gameMode = 'CLASSIC'; currentLevel = 0; startGame(); } },
-        { x: 406, y: 160, w: 244, h: 56, label: 'Ars Nova (Endless)', action: () => { gameMode = 'ENDLESS'; currentLevel = 0; startGame(); } },
-        { x: 150, y: 228, w: 244, h: 56, label: 'Gradus ad Parnassum', action: () => { gameMode = 'GRADUS'; currentLevel = 0; startGame(); } },
-        { x: 406, y: 228, w: 244, h: 56, label: 'Magistri Mensurarum', action: () => { gameState = 'LEADERBOARD'; loadLeaderboard(); } }
+    const MENU_ACTIONS = [
+        () => { gameMode = 'CLASSIC'; currentLevel = 0; startGame(); },
+        () => { gameMode = 'ENDLESS'; currentLevel = 0; startGame(); },
+        () => { gameMode = 'GRADUS'; currentLevel = 0; startGame(); },
+        () => { gameState = 'LEADERBOARD'; loadLeaderboard(); }
     ];
+    const MENU_LABELS = ['Ars Antiqua (Classic)', 'Ars Nova (Endless)', 'Gradus ad Parnassum', 'Magistri Mensurarum'];
+    const MODERN_MENU = [[150, 160], [406, 160], [150, 228], [406, 228]].map(([x, y], i) => ({ x, y, w: 244, h: 56, label: MENU_LABELS[i], primary: i === 0, action: MENU_ACTIONS[i] }));
+    const PRINT_MENU = MENU_LABELS.map((label, i) => ({ x: 232, y: 212 + i * 34, w: 330, h: 32, label, primary: i === 0, action: MENU_ACTIONS[i] }));
+    let MENU_BTNS = MODERN_MENU;
     const INSTALL_BTN = { x: 696, y: 16, w: 88, h: 30 };
+    const THEME_BTN = { x: 584, y: 16, w: 104, h: 30 };
     const LB_SWITCH_BTN = { x: 10, y: 10, w: 160, h: 30 };
     const LB_CLOSE_BTN = { x: 760, y: 10, w: 30, h: 30 };
     let menuHover = -1;
+    let menuArt = null; // cached decorations for the print title pages
+
+    function applyTheme(key) {
+        if (!THEMES[key]) key = 'modern';
+        themeKey = key; T = THEMES[key];
+        Object.assign(C, MODERN_COLORS, T.colors);
+        MENU_BTNS = T.print ? PRINT_MENU : MODERN_MENU;
+        if (T.print) { INSTALL_BTN.x = 690; INSTALL_BTN.y = 30; INSTALL_BTN.w = 72; INSTALL_BTN.h = 28; THEME_BTN.x = 566; THEME_BTN.y = 30; THEME_BTN.w = 118; THEME_BTN.h = 28; }
+        else { INSTALL_BTN.x = 696; INSTALL_BTN.y = 16; INSTALL_BTN.w = 88; INSTALL_BTN.h = 30; THEME_BTN.x = 584; THEME_BTN.y = 16; THEME_BTN.w = 104; THEME_BTN.h = 30; }
+        document.body.dataset.theme = key;
+        document.body.style.background = T.pageBg;
+        menuArt = null;
+        fx.setTheme(T);
+        const sel = document.getElementById('themeSelect'); if (sel) sel.value = key;
+        try { localStorage.setItem('mensuratorTheme', key); } catch (e) {}
+        if (document.fonts && document.fonts.load) {
+            Promise.all([font(20), font(20, 400, true), font(40, 700, false, 'display'), font(20, 400, false, 'sc')].map(f => document.fonts.load(f).catch(() => {})))
+                .then(() => { if (themeKey === key) menuArt = null; });
+        }
+    }
+    function cycleTheme() { applyTheme(THEME_ORDER[(THEME_ORDER.indexOf(themeKey) + 1) % THEME_ORDER.length]); }
+
+    // ===== Period drawing primitives (print and manuscript themes) =====
+    function hashf(n) { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); }
+    function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+    const NIB = -40 * Math.PI / 180; // broad pen held at about 40 degrees
+    // broad-nib stroke: each segment swept by the pen edge, so thick and thin come from direction
+    function nib(c, pts, w) {
+        const nx = Math.cos(NIB) * w / 2, ny = Math.sin(NIB) * w / 2;
+        for (let i = 0; i < pts.length - 1; i++) {
+            const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+            c.beginPath(); c.moveTo(x0 - nx, y0 - ny); c.lineTo(x0 + nx, y0 + ny); c.lineTo(x1 + nx, y1 + ny); c.lineTo(x1 - nx, y1 - ny); c.closePath(); c.fill();
+        }
+    }
+    function hw(x, y) { return Math.sin(x * 0.021 + y * 0.37) * 0.8 + Math.sin(x * 0.067 + y * 1.3) * 0.45; } // hand tremor
+    function wob(x0, y0, x1, y1, amp = 1, step = 8) {
+        const n = Math.max(2, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / step)), pts = [];
+        for (let i = 0; i <= n; i++) { const t = i / n, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t; pts.push([x + hw(y, x) * amp * 0.5, y + hw(x, y) * amp]); }
+        return pts;
+    }
+    function lozenge(c, x, y, rx, ry, filled, lw = 2.4) {
+        c.beginPath(); c.moveTo(x, y - ry); c.lineTo(x + rx, y); c.lineTo(x, y + ry); c.lineTo(x - rx, y); c.closePath();
+        if (filled) c.fill(); else { c.lineWidth = lw; c.lineJoin = 'miter'; c.stroke(); }
+    }
+    function voidLozenge(c, x, y, rx, ry, w = 4.6) { nib(c, [[x, y - ry], [x + rx, y], [x, y + ry], [x - rx, y], [x, y - ry]], w); }
+    function voidRect(c, x, y, w, h, pen = 5) { nib(c, [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]], pen); }
+
+    // staff lines in world space: continuous rules, movable-type segments, or hand-ruled
+    function drawStaff(c, x0, x1, top, gap) {
+        c.fillStyle = C.staff; c.strokeStyle = C.staff;
+        for (let i = 0; i < 5; i++) {
+            const y = top + i * gap;
+            if (T.segments) {
+                const sw = 18; let k = Math.floor(x0 / sw);
+                for (let x = k * sw; x < x1; x += sw, k++) {
+                    const dy = (hashf(k * 7 + i) - 0.5) * 1.6, th = 1.5 + hashf(k * 13 + i * 3) * 0.6;
+                    const a = Math.max(x, x0), b = Math.min(x + sw - 1, x1);
+                    if (b > a) c.fillRect(a, y - th / 2 + dy, b - a + 0.5, th);
+                }
+            } else if (T.hand) {
+                c.lineWidth = 1.5; c.beginPath();
+                const s = Math.floor(x0 / 12) * 12;
+                c.moveTo(x0, y + hw(x0, i * 50) * 1.2);
+                for (let x = s + 12; x < x1; x += 12) c.lineTo(x, y + hw(x, i * 50) * 1.2);
+                c.lineTo(x1, y + hw(x1, i * 50) * 1.2); c.stroke();
+            } else if (T.print) {
+                c.fillRect(x0, y - 0.8, x1 - x0, 1.6);
+            } else {
+                c.lineWidth = 1.5; c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke();
+            }
+        }
+    }
+    function printFClef(c, x, y) {
+        if (T.hand) {
+            nib(c, wob(x, y - 26, x, y + 26, 0.6), 2.8); lozenge(c, x + 11, y - 7, 6, 7, true); lozenge(c, x + 11, y + 7, 6, 7, true);
+            voidRect(c, x + 22, y - 8, 12, 16, 3);
+        } else {
+            c.fillRect(x, y - 30, 3, 60); lozenge(c, x + 12, y - 7, 7, 7, true); lozenge(c, x + 12, y + 7, 7, 7, true);
+            c.fillRect(x + 22, y - 10, 13, 20); c.fillRect(x + 33, y - 10, 2.6, 30);
+        }
+    }
+    function printMensuration(c, x, y) {
+        if (T.hand) nib(c, [[x + 8, y - 11], [x, y - 10], [x - 6, y], [x, y + 10], [x + 8, y + 11]], 4);
+        else { c.lineWidth = 3; c.beginPath(); c.arc(x, y, 13, Math.PI * 0.28, Math.PI * 1.72); c.stroke(); }
+    }
+    function printFlat(c, x, y, s = 1) {
+        c.save(); c.translate(x, y); c.scale(s, s);
+        if (T.hand) { nib(c, wob(0, -30, 0, 4, 0.4), 2.4); nib(c, [[0, -6], [9, -11], [12, -5], [6, 1], [0, 4]], 3); }
+        else { c.fillRect(0, -30, 2.6, 34); c.lineWidth = 2.6; c.beginPath(); c.moveTo(1, -6); c.quadraticCurveTo(15, -14, 10, -2); c.quadraticCurveTo(7, 3, 1, 4); c.stroke(); }
+        c.restore();
+    }
+    function printSharp(c, x, y, s = 1) {
+        c.save(); c.translate(x, y); c.scale(s, s);
+        if (T.hand) { nib(c, [[4, -18], [2, 18]], 2.2); nib(c, [[13, -18], [11, 18]], 2.2); nib(c, [[-4, -4], [20, -9]], 4); nib(c, [[-4, 7], [20, 2]], 4); }
+        else {
+            c.lineWidth = 2.2; c.beginPath(); for (let i = 0; i < 2; i++) { c.moveTo(4 + i * 9, -18); c.lineTo(2 + i * 9, 18); } c.stroke();
+            c.lineWidth = 3.4; c.beginPath(); for (let i = 0; i < 2; i++) { c.moveTo(-4, -4 + i * 11); c.lineTo(20, -9 + i * 11); } c.stroke();
+        }
+        c.restore();
+    }
+    function printFermata(c, x, y) {
+        if (T.hand) { nib(c, [[x - 12, y + 2], [x - 9, y - 7], [x, y - 11], [x + 9, y - 7], [x + 12, y + 2]], 2.4); }
+        else { c.lineWidth = 2.4; c.beginPath(); c.arc(x, y, 12, Math.PI, 0); c.stroke(); }
+        c.beginPath(); c.arc(x, y - 3, 2.6, 0, Math.PI * 2); c.fill();
+    }
+    function printCustos(c, x, y) {
+        const p = [[x, y], [x + 5, y + 6], [x + 10, y - 4], [x + 14, y + 2], [x + 22, y - 22]];
+        if (T.hand) nib(c, p, 2.2); else { c.lineWidth = 2.4; c.beginPath(); p.forEach(([a, b], i) => i ? c.lineTo(a, b) : c.moveTo(a, b)); c.stroke(); }
+    }
+    function fleuron(c, x, y, s = 1) { // hedera leaf
+        c.save(); c.translate(x, y); c.scale(s, s);
+        c.beginPath(); c.moveTo(0, 0); c.bezierCurveTo(-9, -12, 4, -18, 8, -8); c.bezierCurveTo(14, -16, 22, -4, 10, 4); c.bezierCurveTo(6, 7, 2, 4, 0, 0); c.fill();
+        c.lineWidth = 1.6; c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(-8, 6, -14, 2); c.stroke();
+        c.restore();
+    }
+    // woodcut factotum initial: black block, white letter and vine cut away
+    function factotum(c, x, y, size, letter) {
+        const r = rng(7);
+        c.save();
+        c.fillStyle = C.ink; c.fillRect(x, y, size, size);
+        c.globalCompositeOperation = 'destination-out';
+        c.lineWidth = 1.4; c.strokeRect(x + 4, y + 4, size - 8, size - 8);
+        for (let i = 0; i < 70; i++) { const px = x + 8 + r() * (size - 16), py = y + 8 + r() * (size - 16); c.beginPath(); c.arc(px, py, 0.7 + r() * 1.1, 0, Math.PI * 2); c.fill(); }
+        for (let k = 0; k < 4; k++) { c.beginPath(); c.moveTo(x + 8, y + 14 + k * 18); c.bezierCurveTo(x + size * .3, y + 4 + k * 18, x + size * .6, y + 24 + k * 18, x + size - 8, y + 12 + k * 18); c.lineWidth = 1.2; c.stroke(); }
+        c.font = `${size * 0.86}px ${FELL_BIG}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillText(letter, x + size / 2, y + size * 0.56);
+        c.restore();
+    }
+
+    // manuscript illumination
+    const PIG = { blue: '#2c4a9e', blueDk: '#1d3270', red: '#b8342a', rose: '#c45a6e', green: '#3f7a4a', gold: '#c8a03c', goldHi: '#efd486', goldDk: '#8c6a1e', white: '#fbf6ea', flesh: '#e9c9a8', brown: '#7a4a26' };
+    function gold(c, path) {
+        c.save(); c.fillStyle = PIG.gold; c.fill(path); c.clip(path);
+        c.globalAlpha = 0.55; c.fillStyle = PIG.goldHi; c.translate(-6, -6); c.fill(path); c.restore();
+        c.save(); c.strokeStyle = PIG.goldDk; c.lineWidth = 1; c.stroke(path); c.restore();
+    }
+    function bezant(c, x, y, r = 3.4) { const p = new Path2D(); p.arc(x, y, r, 0, Math.PI * 2); gold(c, p); }
+    function leaf(c, x, y, ang, len, col) { c.save(); c.translate(x, y); c.rotate(ang); c.fillStyle = col; c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(len * 0.5, -len * 0.45, len, 0); c.quadraticCurveTo(len * 0.5, len * 0.45, 0, 0); c.fill(); c.strokeStyle = 'rgba(40,25,15,.75)'; c.lineWidth = 0.7; c.stroke(); c.fillStyle = PIG.white; c.globalAlpha = .5; c.fillRect(len * 0.25, -0.5, len * 0.5, 1); c.restore(); }
+    function trefoil(c, x, y, a, r, col) { c.save(); c.translate(x, y); c.rotate(a); c.fillStyle = col; for (let k = -1; k <= 1; k++) { c.beginPath(); c.arc(Math.cos(k * 0.9) * r, Math.sin(k * 0.9) * r, r * 0.62, 0, Math.PI * 2); c.fill(); } c.fillRect(-r * 0.6, -0.8, r * 0.8, 1.6); c.strokeStyle = 'rgba(40,25,15,.7)'; c.lineWidth = .6; for (let k = -1; k <= 1; k++) { c.beginPath(); c.arc(Math.cos(k * 0.9) * r, Math.sin(k * 0.9) * r, r * 0.62, 0, Math.PI * 2); c.stroke(); } c.restore(); }
+    // marginal ivy: hairline stem, curling tendrils, ivy leaves and gold bezants
+    function vine(c, x0, y0, x1, y1, seed) {
+        const r = rng(seed), pts = [], len = Math.hypot(x1 - x0, y1 - y0), n = Math.ceil(len / 3);
+        const ux = (x1 - x0) / len, uy = (y1 - y0) / len, px = -uy, py = ux;
+        for (let i = 0; i <= n; i++) { const t = i / n, w = Math.sin(t * len / 38) * 3.2; pts.push([x0 + (x1 - x0) * t + px * w, y0 + (y1 - y0) * t + py * w]); }
+        c.strokeStyle = C.ink; c.lineWidth = 1.1; c.beginPath(); pts.forEach(([x, y], k) => k ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke();
+        const cols = [PIG.blue, PIG.red, PIG.blue, PIG.rose];
+        let side = 1;
+        for (let d = 10 + r() * 8; d < len - 10; d += 16 + r() * 10) {
+            const i = Math.round(d / 3), [x, y] = pts[i]; side = -side;
+            const bx = px * side, by = py * side;
+            c.strokeStyle = C.ink; c.lineWidth = 0.9; c.beginPath(); c.moveTo(x, y);
+            const sx = x + bx * 9 + ux * 6, sy = y + by * 9 + uy * 6; c.quadraticCurveTo(x + bx * 2 + ux * 6, y + by * 2 + uy * 6, sx, sy);
+            const roll = r() < 0.35;
+            if (roll) { const a0 = Math.atan2(by, bx); for (let a = 0; a < 4.2; a += 0.3) { const rr = 4 - a * 0.8; c.lineTo(sx + Math.cos(a0 + a * side) * rr, sy + Math.sin(a0 + a * side) * rr); } }
+            c.stroke();
+            if (roll) continue;
+            const ang = Math.atan2(by + uy * 0.5, bx + ux * 0.5);
+            if (r() < 0.45) bezant(c, sx, sy, 3.1);
+            else if (r() < 0.6) trefoil(c, sx + bx * 3, sy + by * 3, ang, 3.4, cols[(r() * cols.length) | 0]);
+            else leaf(c, sx, sy, ang, 10 + r() * 3, cols[(r() * cols.length) | 0]);
+        }
+    }
+    function illumInitial(c, x, y, s, letter) { // gold-leaf letter on a blue ground with white filigree
+        c.save();
+        const frame = new Path2D(); frame.rect(x, y, s, s); gold(c, frame);
+        c.fillStyle = PIG.rose; c.fillRect(x + 5, y + 5, s - 10, s - 10);
+        c.fillStyle = PIG.blue; c.fillRect(x + 9, y + 9, s - 18, s - 18);
+        c.strokeStyle = 'rgba(251,246,234,.8)'; c.lineWidth = 0.8; c.fillStyle = 'rgba(251,246,234,.85)';
+        const r = rng(3);
+        for (let i = 0; i < 26; i++) { const fx = x + 14 + r() * (s - 28), fy = y + 14 + r() * (s - 28); c.beginPath(); c.arc(fx, fy, 1, 0, Math.PI * 2); c.fill(); c.beginPath(); c.arc(fx, fy, 3.5, 0, Math.PI * 1.4); c.stroke(); }
+        c.font = `700 ${s * 0.92}px ${GOTH}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.translate(x + s / 2, y + s * 0.5);
+        c.lineWidth = 5; c.strokeStyle = PIG.goldDk; c.strokeText(letter, 0, 0);
+        const g = c.createLinearGradient(-s / 3, -s / 3, s / 3, s / 3); g.addColorStop(0, PIG.goldHi); g.addColorStop(0.45, PIG.gold); g.addColorStop(1, PIG.goldDk);
+        c.fillStyle = g; c.fillText(letter, 0, 0);
+        c.restore();
+        c.strokeStyle = C.ink; c.lineWidth = 1; c.strokeRect(x, y, s, s);
+    }
+    function miniature(c, x, y, w, h) { // three singers at a lectern under a pointed arch
+        c.save();
+        const arch = new Path2D();
+        arch.moveTo(x, y + h); arch.lineTo(x, y + h * 0.32); arch.quadraticCurveTo(x, y + 4, x + w / 2, y); arch.quadraticCurveTo(x + w, y + 4, x + w, y + h * 0.32); arch.lineTo(x + w, y + h); arch.closePath();
+        gold(c, arch);
+        const inner = new Path2D(); const m = 6;
+        inner.moveTo(x + m, y + h - m); inner.lineTo(x + m, y + h * 0.34); inner.quadraticCurveTo(x + m, y + 4 + m * 1.6, x + w / 2, y + m * 1.4); inner.quadraticCurveTo(x + w - m, y + 4 + m * 1.6, x + w - m, y + h * 0.34); inner.lineTo(x + w - m, y + h - m); inner.closePath();
+        c.save(); c.clip(inner);
+        c.fillStyle = PIG.blue; c.fillRect(x, y, w, h);
+        const d = 12;
+        for (let gy = -1; gy < h / d + 1; gy++) for (let gx = -1; gx < w / d + 1; gx++) {
+            const cx = x + gx * d + (gy % 2 ? d / 2 : 0), cy = y + gy * d * 0.9;
+            if ((gx + gy) % 3 === 0) { c.fillStyle = PIG.red; c.beginPath(); c.moveTo(cx, cy - d * 0.45); c.lineTo(cx + d * 0.5, cy); c.lineTo(cx, cy + d * 0.45); c.lineTo(cx - d * 0.5, cy); c.closePath(); c.fill(); }
+            c.fillStyle = PIG.goldHi; c.beginPath(); c.arc(cx, cy, 1.1, 0, Math.PI * 2); c.fill();
+        }
+        const fy = y + h * 0.8;
+        c.fillStyle = '#5e7f4e'; c.fillRect(x, fy, w, h);
+        c.strokeStyle = 'rgba(30,40,20,.45)'; c.lineWidth = .7;
+        for (let i = -8; i < 16; i++) { c.beginPath(); c.moveTo(x + w / 2 + i * 10, fy); c.lineTo(x + w / 2 + i * 22, y + h); c.stroke(); }
+        for (let j = 1; j < 4; j++) { c.beginPath(); c.moveTo(x, fy + j * j * 2.5); c.lineTo(x + w, fy + j * j * 2.5); c.stroke(); }
+        const lx = x + w * 0.56;
+        c.fillStyle = '#6b4123'; c.fillRect(lx - 2, y + h * 0.5, 4, h * 0.34); c.fillRect(lx - 10, y + h * 0.82, 20, 3);
+        c.save(); c.translate(lx, y + h * 0.47); c.rotate(-0.12);
+        c.fillStyle = '#6b4123'; c.fillRect(-21, 0, 42, 4);
+        c.fillStyle = PIG.white; c.beginPath(); c.moveTo(-22, -14); c.quadraticCurveTo(-11, -18, 0, -13); c.quadraticCurveTo(11, -18, 22, -14); c.lineTo(22, 1); c.quadraticCurveTo(11, -3, 0, 1); c.quadraticCurveTo(-11, -3, -22, 1); c.closePath(); c.fill();
+        c.strokeStyle = PIG.red; c.lineWidth = .5;
+        for (let i = 0; i < 4; i++) { c.beginPath(); c.moveTo(-19, -11 + i * 2.6); c.lineTo(-3, -11 + i * 2.6); c.moveTo(3, -11 + i * 2.6); c.lineTo(19, -11 + i * 2.6); c.stroke(); }
+        c.fillStyle = '#2a1a10'; [[-15, -10], [-9, -8], [7, -9], [14, -7]].forEach(([a, b]) => c.fillRect(a, b, 1.4, 1.4));
+        c.restore();
+        [[x + w * 0.2, PIG.blueDk, 1, 1.0], [x + w * 0.34, PIG.red, 1, 0.94], [x + w * 0.82, '#e8e0cc', -1, 1.04]].forEach(([cx, robe, face, sc]) => {
+            const top = y + h * (0.34 + (1 - sc) * 0.4), base = fy + 4;
+            c.fillStyle = robe; c.beginPath(); c.moveTo(cx - 10 * sc, base); c.quadraticCurveTo(cx - 9 * sc, top + 20, cx - 5, top + 9); c.lineTo(cx + 5, top + 9); c.quadraticCurveTo(cx + 9 * sc, top + 20, cx + 10 * sc, base); c.closePath(); c.fill();
+            c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = .8; for (let k = -1; k <= 1; k++) { c.beginPath(); c.moveTo(cx + k * 3, top + 14); c.quadraticCurveTo(cx + k * 4.5, top + 30, cx + k * 6, base); c.stroke(); }
+            c.fillStyle = PIG.flesh; c.beginPath(); c.arc(cx + face * 1.5, top + 4, 5, 0, Math.PI * 2); c.fill();
+            c.fillStyle = '#4a2e1a'; c.beginPath(); c.arc(cx + face * 1.5, top + 4, 5, Math.PI * (face > 0 ? 0.95 : 1.05), Math.PI * (face > 0 ? 1.75 : 2.05)); c.fill();
+            c.fillStyle = PIG.flesh; c.beginPath(); c.arc(cx + face * 1.5, top + 0.5, 2, 0, Math.PI * 2); c.fill();
+            c.fillStyle = '#2a1a10'; c.beginPath(); c.arc(cx + face * 4, top + 3.5, 0.7, 0, Math.PI * 2); c.fill();
+            c.fillStyle = '#7a2a20'; c.beginPath(); c.arc(cx + face * 4.6, top + 6.2, 0.8, 0, Math.PI * 2); c.fill();
+            c.fillStyle = PIG.flesh; c.beginPath(); c.arc(cx + face * 7, top + 15, 1.8, 0, Math.PI * 2); c.fill();
+            c.strokeStyle = C.ink; c.lineWidth = .7; c.beginPath(); c.arc(cx + face * 1.5, top + 4, 5, 0, Math.PI * 2); c.stroke();
+        });
+        c.restore();
+        c.strokeStyle = C.ink; c.lineWidth = 1; c.stroke(arch); c.stroke(inner);
+        c.restore();
+    }
+    function lombard(c, ch, x, y, size) { // pen-flourished initial: blue letter, red filigree
+        c.save(); c.font = `700 ${size}px ${GOTH}`; c.fillStyle = PIG.blue; c.textAlign = 'left'; c.textBaseline = 'alphabetic'; c.fillText(ch, x, y);
+        c.strokeStyle = PIG.red; c.lineWidth = 0.9;
+        for (let i = 0; i < 7; i++) { const yy = y - size * 0.9 + i * size * 0.16; c.beginPath(); c.moveTo(x - 4, yy); c.bezierCurveTo(x - 12, yy + 3, x - 8, yy + 9, x - 14, yy + 12); c.stroke(); }
+        c.beginPath(); c.moveTo(x - 6, y + 2); c.bezierCurveTo(x - 18, y + 16, x + 10, y + 20, x - 2, y + 30); c.stroke(); c.restore();
+    }
+
+    // Static title-page decorations, drawn once per theme into an offscreen canvas
+    function buildMenuArt() {
+        const cv = document.createElement('canvas'); cv.width = W * DPR; cv.height = H * DPR;
+        const c = cv.getContext('2d'); c.scale(DPR, DPR);
+        c.fillStyle = C.ink; c.strokeStyle = C.ink;
+        if (T.hand) {
+            c.strokeStyle = C.red; c.lineWidth = 1; c.strokeRect(40, 22, 720, 356);
+            vine(c, 26, 30, 26, 370, 5); vine(c, 50, 388, 750, 388, 6); vine(c, 774, 30, 774, 370, 7);
+            [[26, 22], [774, 22], [26, 388], [774, 388]].forEach(([x, y]) => bezant(c, x, y, 4.5));
+            illumInitial(c, 92, 40, 112, 'M');
+            miniature(c, 590, 200, 140, 150);
+        } else {
+            const fc = T.staff;
+            c.fillStyle = fc;
+            c.fillRect(24, 22, 752, 2.2); c.fillRect(24, 376, 752, 2.2); c.fillRect(24, 22, 2.2, 356); c.fillRect(774, 22, 2.2, 356);
+            c.fillRect(30, 28, 740, 0.9); c.fillRect(30, 371, 740, 0.9); c.fillRect(30, 28, 0.9, 344); c.fillRect(769, 28, 0.9, 344);
+            factotum(c, 104, 46, 86, 'M');
+        }
+        // short staff under the title, with a few notes in the theme's notation
+        c.fillStyle = C.staff; c.strokeStyle = C.staff;
+        const top = T.hand ? 176 : 180;
+        for (let i = 0; i < 5; i++) {
+            const y = top + i * 5.5;
+            if (T.hand) { c.lineWidth = 1.2; c.beginPath(); c.moveTo(222, y + hw(222, i * 9)); for (let x = 234; x <= 708; x += 12) c.lineTo(x, y + hw(x, i * 9) * 0.8); c.stroke(); }
+            else if (T.segments) { for (let x = 222; x < 708; x += 18) c.fillRect(x, y - 0.8 + (hashf(x + i * 31) - 0.5) * 1.2, 17, 1.6); }
+            else c.fillRect(222, y - 0.7, 486, 1.4);
+        }
+        c.fillStyle = C.ink; c.strokeStyle = C.ink;
+        const ny = (step) => top + 22 - step * 2.75;
+        [[250, 2, 's'], [280, 0, 'm'], [310, 4, 's'], [338, 2, 'sm'], [366, 1, 'b'], [404, -1, 's'], [432, 3, 'm'], [462, 5, 'sm'], [490, 4, 'sm'], [518, 2, 's']].forEach(([x, st, kind]) => {
+            const y = ny(st);
+            if (kind === 'b') { if (T.hand) voidRect(c, x - 8, y - 5, 16, 10, 1.8); else { c.lineWidth = 1.6; c.strokeRect(x - 8, y - 5, 16, 10); } return; }
+            if (kind === 'sm') lozenge(c, x, y, 4, 5, true);
+            else if (T.hand) voidLozenge(c, x, y, 4, 5, 1.8);
+            else lozenge(c, x, y, 4, 5, false, 1.6);
+            if (kind !== 's') c.fillRect(x - 0.6, y - 17, 1.2, 12);
+        });
+        printCustos(c, 690, ny(1));
+        return cv;
+    }
+
+    // ===== Paper and ink pass for the print themes (WebGL, falls back to flat paper) =====
+    const fx = (() => {
+        const cv = document.createElement('canvas');
+        cv.id = 'fxCanvas';
+        const off = { active: false, setTheme() { canvas.style.opacity = ''; canvas.style.background = T.print ? C.paper : ''; }, render() {} };
+        let gl = null;
+        try { gl = cv.getContext('webgl', { alpha: false, antialias: false, premultipliedAlpha: false }); } catch (e) {}
+        if (!gl) return off;
+        canvasContainer.appendChild(cv);
+        const vs = 'attribute vec2 p; varying vec2 v; void main(){ v = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }';
+        const fs = `precision mediump float;
+            uniform sampler2D uGame, uPaper, uNoise; uniform vec2 uRes; uniform float uMode, uGrain, uDensity;
+            varying vec2 v;
+            void main() {
+                vec2 uv = vec2(v.x, 1.0 - v.y);
+                vec4 g = texture2D(uGame, uv);
+                vec3 paper = texture2D(uPaper, uv).rgb;
+                vec2 px = uv * uRes;
+                float fine = texture2D(uNoise, px / 256.0 * 0.8).r;
+                float mid = texture2D(uNoise, px / 2048.0).g;
+                float a = g.a;
+                if (uMode > 1.5) {
+                    float lum = dot(g.rgb, vec3(0.299, 0.587, 0.114));
+                    float ink = a * (1.0 - smoothstep(0.55, 0.8, lum));
+                    float t = ink + (fine - 0.5) * uGrain + (mid - 0.5) * 0.14;
+                    gl_FragColor = vec4(t > 0.5 ? vec3(0.0) : paper, 1.0);
+                } else {
+                    float edge = 1.0 - abs(a * 2.0 - 1.0);
+                    float e = clamp(a + (fine - 0.5) * uGrain * (0.35 + edge * 2.2), 0.0, 1.0);
+                    e *= 1.0 - uDensity * mid * step(0.02, a);
+                    gl_FragColor = vec4(mix(paper, g.rgb, e), 1.0);
+                }
+            }`;
+        const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+        let prog;
+        try { prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('link'); }
+        catch (e) { cv.remove(); return off; }
+        gl.useProgram(prog);
+        const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+        const loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+        const U = n => gl.getUniformLocation(prog, n);
+        const tex = (unit, wrap) => { const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap); return t; };
+        const gameTex = tex(0, gl.CLAMP_TO_EDGE), paperTex = tex(1, gl.CLAMP_TO_EDGE), noiseTex = tex(2, gl.REPEAT);
+        gl.uniform1i(U('uGame'), 0); gl.uniform1i(U('uPaper'), 1); gl.uniform1i(U('uNoise'), 2);
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+        // tileable grain: independent random values per texel, smoothed by linear filtering
+        { const n = new Uint8Array(256 * 256 * 4), r = rng(42); for (let i = 0; i < n.length; i++) n[i] = r() * 255; gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, noiseTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 256, 0, gl.RGBA, gl.UNSIGNED_BYTE, n); }
+
+        function valueNoise(seed, cell, w, h) {
+            const r = rng(seed), gw = Math.ceil(w / cell) + 2, gh = Math.ceil(h / cell) + 2, g = new Float32Array(gw * gh);
+            for (let i = 0; i < g.length; i++) g[i] = r();
+            return (x, y) => {
+                const fx = x / cell, fy = y / cell, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+                const ix = ((x0 % (gw - 1)) + gw - 1) % (gw - 1), iy = ((y0 % (gh - 1)) + gh - 1) % (gh - 1);
+                const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+                const a = g[iy * gw + ix], b = g[iy * gw + ix + 1], c = g[(iy + 1) * gw + ix], d = g[(iy + 1) * gw + ix + 1];
+                return a + (b - a) * sx + (c - a + (a - b + d - c) * sx) * sy;
+            };
+        }
+        function makePaper(p, w, h) {
+            const pc = document.createElement('canvas'); pc.width = w; pc.height = h;
+            const c = pc.getContext('2d'), img = c.createImageData(w, h), d = img.data;
+            const k = w / 1600; // features keep their size whatever the resolution
+            const fine = valueNoise(11, 1.6 * k, w, h), mid = valueNoise(12, 9 * k, w, h), big = valueNoise(13, 180 * k, w, h), fox = valueNoise(14, 40 * k, w, h);
+            const plain = p.mode === 2;
+            for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+                const i = (y * w + x) * 4;
+                let r = p.paper[0], g = p.paper[1], b = p.paper[2];
+                if (!plain) {
+                    const n = (big(x, y) - 0.5) * 22 + (mid(x, y) - 0.5) * 6 + (fine(x, y) - 0.5) * 5;
+                    const laid = p.vellum ? (mid(x * 0.15, y * 2.5) - 0.5) * 7 : p.laid ? ((y / k) % 7 < 1 ? -3 : 0) + ((x / k) % 64 < 2 ? -4 : 0) : 0;
+                    const wv = (mid(x * 0.3, y * 0.3) - 0.5) * 60 * k;
+                    const f = Math.max(0, fox(x + wv, y - wv) * 0.7 + big(x * 2, y * 2) * 0.3 - (1 - (p.foxing || 0) * 2.6)) * 90;
+                    const edge = Math.min(x, y, w - x, h - y) / k, vig = edge < 40 ? (40 - edge) * 0.35 : 0;
+                    r += n + laid - f * 0.4 - vig; g += n + laid - f * 0.7 - vig; b += n * 1.2 + laid - f - vig * 1.3;
+                } else if (hashf(x * 3.17 + y * 913.7) > 0.99995) { r = g = b = 40; } // dust specks in the scan
+                d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255;
+            }
+            c.putImageData(img, 0, 0);
+            return pc;
+        }
+        const api = {
+            active: false,
+            setTheme(t) {
+                canvas.style.background = '';
+                if (!t.post) { api.active = false; cv.style.display = 'none'; canvas.style.opacity = ''; return; }
+                cv.width = canvas.width; cv.height = canvas.height;
+                gl.viewport(0, 0, cv.width, cv.height);
+                const paper = makePaper(t.post, Math.min(cv.width, 1600), Math.min(cv.height, 800));
+                gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, paperTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, paper);
+                gl.uniform2f(U('uRes'), cv.width, cv.height);
+                gl.uniform1f(U('uMode'), t.post.mode); gl.uniform1f(U('uGrain'), t.post.grain); gl.uniform1f(U('uDensity'), t.post.density);
+                cv.style.display = 'block'; canvas.style.opacity = '0'; api.active = true;
+            },
+            render() {
+                if (!api.active) return;
+                gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, gameTex);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            }
+        };
+        return api;
+    })();
 
     // --- Name Input Screen ---
     function drawNameInput() {
         veil(0.97);
         ctx.textAlign = 'center';
 
-        ctx.fillStyle = C.ink; ctx.font = font(30, 800); spacing(4);
+        ctx.fillStyle = C.ink; ctx.font = font(30, 800, false, "display"); spacing(4);
         ctx.fillText(gameMode === 'ENDLESS' ? 'CANTUS FINITUS' : 'VICTORIA!', W / 2, 96);
         spacing(0);
 
@@ -604,7 +1048,7 @@ let devInvincible = false;
         ctx.moveTo(cb.x + cb.w - 10, cb.y + 10); ctx.lineTo(cb.x + 10, cb.y + cb.h - 10);
         ctx.stroke(); ctx.lineCap = 'butt';
 
-        ctx.fillStyle = C.ink; ctx.font = font(24, 800); spacing(3);
+        ctx.fillStyle = C.ink; ctx.font = font(24, 800, false, "display"); spacing(3);
         ctx.fillText('MAGISTRI MENSURATORUM', W / 2, 62);
         spacing(0);
         ctx.fillStyle = C.soft; ctx.font = font(13, 500);
@@ -1038,6 +1482,7 @@ let devInvincible = false;
         if (gameState === 'MENU') {
             if (e.code === 'KeyM') { isMuted = !isMuted; if (isMuted && musicTimeout) clearTimeout(musicTimeout); return; }
             if (e.code === 'KeyL') { gameState = 'LEADERBOARD'; loadLeaderboard(); return; }
+            if (e.code === 'KeyT') { cycleTheme(); return; }
             if (!e.repeat) {
                 if (e.key === '1') { gameMode = 'CLASSIC'; currentLevel = 0; startGame(); }
                 else if (e.key === '2') { gameMode = 'ENDLESS'; currentLevel = 0; startGame(); }
@@ -1266,7 +1711,7 @@ let devInvincible = false;
         const x = (e.clientX - rect.left) / (rect.width / W);
         const y = (e.clientY - rect.top) / (rect.height / H);
         menuHover = MENU_BTNS.findIndex(b => inRect(x, y, b));
-        canvas.style.cursor = (menuHover !== -1 || inRect(x, y, INSTALL_BTN)) ? 'pointer' : '';
+        canvas.style.cursor = (menuHover !== -1 || inRect(x, y, INSTALL_BTN) || inRect(x, y, THEME_BTN)) ? 'pointer' : '';
     });
     canvas.addEventListener('pointerleave', () => { menuHover = -1; canvas.style.cursor = ''; });
 
@@ -1291,6 +1736,7 @@ let devInvincible = false;
                 gameState = 'INSTALL_PROMPT';
                 return;
             }
+            if (inRect(x, y, THEME_BTN)) { cycleTheme(); return; }
 
             const picked = MENU_BTNS.find(b => inRect(x, y, b));
             if (picked) picked.action();
@@ -1734,19 +2180,39 @@ let devInvincible = false;
 
     function drawMensuralNote(ctx, x, y, stateName, isInvulnerable, opacity = 1, isColored = false, isGhost = false) {
         ctx.save(); const cx = x + 12; const cy = y + 35; let isDotted = stateName.startsWith('DOTTED_'); let baseState = stateName.replace('DOTTED_', '');
-        const inkA = `rgba(59, 49, 37, ${opacity})`;
-        if (isGhost) { ctx.fillStyle = 'rgba(181, 71, 58, 0.55)'; ctx.strokeStyle = 'rgba(181, 71, 58, 0.55)'; }
-        else if (isColored) { if (player.colorationTimer < 60 && Math.floor(Date.now() / 100) % 2 === 0) { ctx.fillStyle = inkA; ctx.strokeStyle = inkA; } else { ctx.shadowBlur = 14; ctx.shadowColor = 'rgba(156, 107, 60, 0.85)'; ctx.fillStyle = '#1f1a14'; ctx.strokeStyle = '#1f1a14'; } }
+        const inkA = rgba(C.ink, opacity);
+        if (isGhost) { ctx.fillStyle = rgba(C.red, 0.55); ctx.strokeStyle = rgba(C.red, 0.55); }
+        else if (isColored) { if (player.colorationTimer < 60 && Math.floor(Date.now() / 100) % 2 === 0) { ctx.fillStyle = inkA; ctx.strokeStyle = inkA; } else { if (!T.print) { ctx.shadowBlur = 14; ctx.shadowColor = rgba(C.mark, 0.85); } ctx.fillStyle = T.print ? C.ink : '#1f1a14'; ctx.strokeStyle = ctx.fillStyle; } }
         else { ctx.fillStyle = inkA; ctx.strokeStyle = inkA; }
+        const solid = isColored || isGhost;
+        if (T.white) {
+            // white mensural notation by hand: void heads drawn with a broad pen, blackened when coloured
+            const head = (rx, ry) => solid ? lozenge(ctx, cx, cy, rx, ry, true) : voidLozenge(ctx, cx, cy, rx, ry, 4.6);
+            const stem = (len) => nib(ctx, wob(cx, cy - 11, cx + 0.4, cy - 11 - len, 0.4, 8), 3.2);
+            const box = (w, h) => solid ? ctx.fillRect(cx - w / 2, cy - h / 2, w, h) : voidRect(ctx, cx - w / 2, cy - h / 2, w, h, 5);
+            switch (baseState) {
+                case 'FUSA': lozenge(ctx, cx, cy, 10, 12, true); stem(34); nib(ctx, [[cx, cy - 45], [cx + 8, cy - 36], [cx + 16, cy - 24]], 3); break;
+                case 'SEMIMINIMA': lozenge(ctx, cx, cy, 10, 12, true); stem(24); break;
+                case 'MINIMA': head(10, 12); stem(24); break;
+                case 'SEMIBREVIS': head(12, 14); break;
+                case 'BREVIS': box(22, 22); break;
+                case 'LONGA': box(22, 22); nib(ctx, wob(cx + 10, cy + 10, cx + 10, cy + 30, 0.4), 3.2); break;
+                case 'MAXIMA': box(36, 24); nib(ctx, wob(cx + 17, cy + 12, cx + 17, cy + 35, 0.4), 3.2); break;
+            }
+            if (isDotted) { ctx.beginPath(); ctx.arc(cx + 21, cy - 5, 3, 0, Math.PI * 2); ctx.fill(); }
+            ctx.restore();
+            return;
+        }
         const hollow = C.paper;
+        const r = T.print ? 0 : 3;
         switch(baseState) {
             case 'FUSA': drawDiamond(ctx, cx, cy, 10, true); ctx.fillRect(cx - 1.25, cy - 45, 2.5, 35); ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(cx, cy - 45); ctx.quadraticCurveTo(cx + 12, cy - 20, cx + 18, cy - 20); ctx.stroke(); break;
             case 'SEMIMINIMA': drawDiamond(ctx, cx, cy, 10, true); ctx.fillRect(cx - 1.25, cy - 35, 2.5, 25); break;
-            case 'MINIMA': drawDiamond(ctx, cx, cy, 10, isColored || isGhost); ctx.fillRect(cx - 1.25, cy - 35, 2.5, 25); break;
-            case 'SEMIBREVIS': drawDiamond(ctx, cx, cy, 13, isColored || isGhost); break;
-            case 'BREVIS': ctx.lineWidth = 2.5; if (isColored || isGhost) { pathRoundRect(ctx, cx - 11, cy - 11, 22, 22, 3); ctx.fill(); } else { pathRoundRect(ctx, cx - 11, cy - 11, 22, 22, 3); ctx.stroke(); } break;
-            case 'LONGA': ctx.lineWidth = 2.5; if (isColored || isGhost) { pathRoundRect(ctx, cx - 11, cy - 11, 22, 22, 3); ctx.fill(); } else { const f = ctx.fillStyle; ctx.fillStyle = hollow; pathRoundRect(ctx, cx - 11, cy - 11, 22, 22, 3); ctx.fill(); ctx.fillStyle = f; ctx.stroke(); } ctx.fillRect(cx + 9, cy, 2.5, 30); break;
-            case 'MAXIMA': ctx.lineWidth = 2.5; if (isColored || isGhost) { pathRoundRect(ctx, cx - 18, cy - 12, 36, 24, 3); ctx.fill(); } else { const f = ctx.fillStyle; ctx.fillStyle = hollow; pathRoundRect(ctx, cx - 18, cy - 12, 36, 24, 3); ctx.fill(); ctx.fillStyle = f; ctx.stroke(); } ctx.fillRect(cx + 16, cy, 2.5, 35); break;
+            case 'MINIMA': drawDiamond(ctx, cx, cy, 10, solid); ctx.fillRect(cx - 1.25, cy - 35, 2.5, 25); break;
+            case 'SEMIBREVIS': drawDiamond(ctx, cx, cy, 13, solid); break;
+            case 'BREVIS': ctx.lineWidth = 2.5; if (solid) { pathRoundRect(ctx, cx - 11, cy - 11, 22, 22, r); ctx.fill(); } else { pathRoundRect(ctx, cx - 11, cy - 11, 22, 22, r); ctx.stroke(); } break;
+            case 'LONGA': ctx.lineWidth = 2.5; if (solid) { pathRoundRect(ctx, cx - 11, cy - 11, 22, 22, r); ctx.fill(); } else { const f = ctx.fillStyle; ctx.fillStyle = hollow; pathRoundRect(ctx, cx - 11, cy - 11, 22, 22, r); ctx.fill(); ctx.fillStyle = f; ctx.stroke(); } ctx.fillRect(cx + 9, cy, 2.5, 30); break;
+            case 'MAXIMA': ctx.lineWidth = 2.5; if (solid) { pathRoundRect(ctx, cx - 18, cy - 12, 36, 24, r); ctx.fill(); } else { const f = ctx.fillStyle; ctx.fillStyle = hollow; pathRoundRect(ctx, cx - 18, cy - 12, 36, 24, r); ctx.fill(); ctx.fillStyle = f; ctx.stroke(); } ctx.fillRect(cx + 16, cy, 2.5, 35); break;
         }
         if (isDotted) { ctx.beginPath(); ctx.arc(cx + 20, cy - 5, 2.8, 0, Math.PI*2); ctx.fill(); }
         ctx.restore();
@@ -1768,29 +2234,102 @@ let devInvincible = false;
     }
 
     function drawCheckpoint(ctx, cp) {
-        const col = cp.active ? C.mark : 'rgba(156, 107, 60, 0.28)';
-        ctx.fillStyle = col;
-        pathRoundRect(ctx, cp.x, 230, 3, 120, 1.5); ctx.fill();
-        pathRoundRect(ctx, cp.x + 10, 230, 3, 120, 1.5); ctx.fill();
-        ctx.textAlign = 'left'; ctx.font = `40px ${MUSIC}`; ctx.fillText('𝄐', cp.x - 10, 220);
-        if (cp.active) { ctx.font = font(12, 600); ctx.fillText(cp.label, cp.x - 20, 180); }
+        const col = cp.active ? C.mark : rgba(C.mark, T.mono ? 1 : 0.28);
+        ctx.fillStyle = col; ctx.strokeStyle = col;
+        if (T.print) {
+            if (T.hand) { nib(ctx, wob(cp.x + 1.5, 230, cp.x + 1.5, 350, 0.6), 2.8); nib(ctx, wob(cp.x + 11.5, 230, cp.x + 11.5, 350, 0.6), 2.8); }
+            else { ctx.fillRect(cp.x, 230, 3, 120); ctx.fillRect(cp.x + 10, 230, 3, 120); }
+            ctx.fillStyle = col; printFermata(ctx, cp.x + 6.5, 216);
+        } else {
+            pathRoundRect(ctx, cp.x, 230, 3, 120, 1.5); ctx.fill();
+            pathRoundRect(ctx, cp.x + 10, 230, 3, 120, 1.5); ctx.fill();
+            ctx.textAlign = 'left'; ctx.font = `40px ${MUSIC}`; ctx.fillText('𝄐', cp.x - 10, 220);
+        }
+        if (cp.active) { ctx.textAlign = 'left'; ctx.font = font(12, 600, false, 'sc'); ctx.fillText(cp.label, cp.x - 20, 180); }
     }
 
     function drawLigature(ctx, plat) {
         if (plat.type === 'ground') return; ctx.fillStyle = C.ink; let drawY = plat.y + (plat.shakeTimer > 0 && plat.shakeTimer <= 30 ? Math.sin(plat.shakeTimer * 2) * 2 : 0);
-        if (plat.shakeTimer > 0 && plat.shakeTimer <= 30) ctx.fillStyle = C.inkSoft;
+        if (plat.shakeTimer > 0 && plat.shakeTimer <= 30 && !T.mono) ctx.fillStyle = C.inkSoft;
+        const r = T.print ? 0 : 3;
+        if (T.white) {
+            // void ligatures, outlined with the pen
+            const tail = (x, y) => nib(ctx, wob(x, y, x, y + 35, 0.4), 3);
+            if (plat.type === 'ice') { nib(ctx, [[plat.x, drawY], [plat.x + plat.w, drawY - 20], [plat.x + plat.w, drawY + plat.h - 20], [plat.x, drawY + plat.h], [plat.x, drawY]], 5); tail(plat.x + plat.w - 1.5, drawY - 20); }
+            else if (plat.type === 'descend') { nib(ctx, [[plat.x, drawY - 20], [plat.x + plat.w, drawY], [plat.x + plat.w, drawY + plat.h], [plat.x, drawY + plat.h - 20], [plat.x, drawY - 20]], 5); tail(plat.x + plat.w - 1.5, drawY); }
+            else if (plat.type === 'rising') { voidRect(ctx, plat.x, drawY + 15, plat.w / 2, plat.h, 5); voidRect(ctx, plat.x + plat.w / 2, drawY, plat.w / 2, plat.h, 5); tail(plat.x + plat.w - 1.5, drawY); }
+            else { voidRect(ctx, plat.x, drawY, plat.w, plat.h, 5); tail(plat.x + plat.w - 1.5, drawY); }
+            return;
+        }
         if (plat.type === 'ice') {
             ctx.beginPath(); ctx.moveTo(plat.x, drawY); ctx.lineTo(plat.x + plat.w, drawY - 20); ctx.lineTo(plat.x + plat.w, drawY + plat.h - 20); ctx.lineTo(plat.x, drawY + plat.h); ctx.closePath(); ctx.fill(); ctx.fillRect(plat.x + plat.w - 3, drawY - 20, 3, 35);
         } else if (plat.type === 'descend') {
             ctx.beginPath(); ctx.moveTo(plat.x, drawY - 20); ctx.lineTo(plat.x + plat.w, drawY); ctx.lineTo(plat.x + plat.w, drawY + plat.h); ctx.lineTo(plat.x, drawY + plat.h - 20); ctx.closePath(); ctx.fill(); ctx.fillRect(plat.x + plat.w - 3, drawY, 3, 35);
         } else if (plat.type === 'rising') {
-            pathRoundRect(ctx, plat.x, drawY + 15, plat.w / 2, plat.h, 3); ctx.fill(); pathRoundRect(ctx, plat.x + plat.w / 2, drawY, plat.w / 2, plat.h, 3); ctx.fill(); ctx.fillRect(plat.x + plat.w / 2 - 1.5, drawY, 3, 15 + plat.h); ctx.fillRect(plat.x + plat.w - 3, drawY, 3, 35);
+            pathRoundRect(ctx, plat.x, drawY + 15, plat.w / 2, plat.h, r); ctx.fill(); pathRoundRect(ctx, plat.x + plat.w / 2, drawY, plat.w / 2, plat.h, r); ctx.fill(); ctx.fillRect(plat.x + plat.w / 2 - 1.5, drawY, 3, 15 + plat.h); ctx.fillRect(plat.x + plat.w - 3, drawY, 3, 35);
         } else {
-            pathRoundRect(ctx, plat.x, drawY, plat.w, plat.h, 3); ctx.fill(); ctx.fillRect(plat.x + plat.w - 3, drawY, 3, 35);
+            pathRoundRect(ctx, plat.x, drawY, plat.w, plat.h, r); ctx.fill(); ctx.fillRect(plat.x + plat.w - 3, drawY, 3, 35);
         }
     }
 
+    function drawThemeButton() {
+        const b = THEME_BTN;
+        ctx.textAlign = 'center';
+        if (T.print) {
+            ctx.fillStyle = C.red; ctx.font = font(14, 500, false, 'sc');
+            ctx.fillText('❧ ' + T.name, b.x + b.w / 2, b.y + 19);
+        } else {
+            pill(b.x, b.y, b.w, b.h, C.paper, C.line);
+            ctx.fillStyle = C.ink; ctx.font = font(13, 600);
+            ctx.fillText('◐ ' + T.name, b.x + b.w / 2, b.y + 20);
+        }
+    }
+
+    function drawPrintMenu() {
+        if (!menuArt) menuArt = buildMenuArt();
+        ctx.drawImage(menuArt, 0, 0, W, H);
+        const tx = T.hand ? 222 : 200, ty = T.hand ? 132 : 122;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = (T.hand || T.mono) ? C.ink : C.red;
+        if (T.hand) { ctx.font = `600 76px ${GOTH}`; spacing(1); }
+        else { ctx.font = `62px ${FELL_BIG}`; spacing(5); }
+        ctx.fillText(T.hand ? 'ensurator' : 'ENSURATOR', tx, ty);
+        spacing(0);
+        ctx.fillStyle = T.hand ? C.red : C.ink;
+        ctx.font = T.hand ? `400 21px ${GOTH}` : `italic 19px ${FELL}`;
+        ctx.textAlign = T.hand ? 'left' : 'center';
+        ctx.fillText('Unmute your device for sound!', T.hand ? 222 : 400, T.hand ? 162 : 162);
+
+        MENU_BTNS.forEach((b, i) => {
+            const y = b.y + 25, hover = menuHover === i;
+            if (T.hand) {
+                ctx.fillStyle = i % 2 ? PIG.blue : PIG.red; ctx.font = `700 26px ${GOTH}`; ctx.textAlign = 'left';
+                ctx.fillText('¶', b.x + 4, y);
+                ctx.fillStyle = C.ink; ctx.font = `${i === 0 ? 600 : 500} 27px ${GOTH}`;
+            } else {
+                ctx.fillStyle = C.red; ctx.strokeStyle = C.red;
+                fleuron(ctx, b.x + 8, y - 7, 0.9);
+                ctx.fillStyle = (i === 0 && !T.mono) ? C.red : C.ink; ctx.font = `${i === 0 ? 26 : 24}px ${FELL}`;
+            }
+            ctx.textAlign = 'left';
+            ctx.fillText(b.label, b.x + 30, y);
+            if (hover) { const w = ctx.measureText(b.label).width; ctx.fillRect(b.x + 30, y + 5, w, 1.2); }
+        });
+
+        // Install and theme
+        const ib = INSTALL_BTN;
+        ctx.textAlign = 'center'; ctx.fillStyle = C.red; ctx.font = font(15, 500, false, 'sc');
+        ctx.fillText('Install', ib.x + ib.w / 2, ib.y + 19);
+        drawThemeButton();
+
+        const credit = 'Feedback > mensuratorgame@gmail.com  Samuel Reid Navarro  ·  ' + new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+        ctx.fillStyle = C.ink; ctx.textAlign = 'center';
+        ctx.font = T.hand ? `400 13px ${GOTH}` : `italic 13px ${FELL}`;
+        ctx.fillText(credit, W / 2, T.hand ? 368 : 362);
+    }
+
     function drawMenu() {
+        if (T.print) { drawPrintMenu(); return; }
         // Faint staff behind the title
         ctx.strokeStyle = C.line; ctx.lineWidth = 1;
         for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(60, 50.5 + i * 11); ctx.lineTo(W - 60, 50.5 + i * 11); ctx.stroke(); }
@@ -1852,6 +2391,7 @@ let devInvincible = false;
         ctx.font = font(13, 600);
         ctx.textAlign = 'center';
         ctx.fillText('Install', ib.x + ib.w / 2, ib.y + 20);
+        drawThemeButton();
 
         const credit = 'Feedback > mensuratorgame@gmail.com  Samuel Reid Navarro  ·  ' + new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
         ctx.fillStyle = C.soft;
@@ -1860,6 +2400,11 @@ let devInvincible = false;
     }
 
     function drawStatusPill(text, color, y) {
+        if (T.print) {
+            ctx.font = font(15, 600, true); ctx.fillStyle = color; ctx.textAlign = 'right';
+            ctx.fillText(text, W - 24, y + 15);
+            return y + 22;
+        }
         ctx.font = font(12, 700);
         const w = ctx.measureText(text).width + 22;
         ctx.save(); ctx.globalAlpha = 0.12; pill(W - 24 - w, y, w, 22, color); ctx.restore();
@@ -1894,16 +2439,14 @@ let devInvincible = false;
             ctx.strokeStyle = C.staff; ctx.lineWidth = 1.5;
             if (gameMode !== 'GRADUS' && currentLevelData && currentLevelData.groundChunks) {
                 currentLevelData.groundChunks.forEach(chunk => {
-                    for (let i = 0; i < 5; i++) {
-                        ctx.beginPath();
-                        ctx.moveTo(chunk.x, 230 + i * 30);
-                        ctx.lineTo(chunk.x + chunk.w, 230 + i * 30);
-                        ctx.stroke();
-                    }
+                    const x0 = Math.max(chunk.x, cameraX - 40), x1 = Math.min(chunk.x + chunk.w, cameraX + W + 40);
+                    if (x1 > x0) drawStaff(ctx, x0, x1, 230, 30);
                 });
             } else if (gameMode === 'GRADUS') {
                 let startY = Math.floor(cameraY / 100) * 100;
+                ctx.fillStyle = C.staff;
                 for (let i = 0; i < 5; i++) {
+                    if (T.print) { ctx.fillRect(100 + i * 150 - 0.8, cameraY - 40, 1.6, H + 80); continue; }
                     ctx.beginPath();
                     ctx.moveTo(100 + i * 150, startY - 1000);
                     ctx.lineTo(100 + i * 150, cameraY + H + 1000);
@@ -1913,9 +2456,12 @@ let devInvincible = false;
 
         if (gameMode === 'CLASSIC') {
             ctx.textAlign = 'left';
-            ctx.fillStyle = C.ink; ctx.font = `70px ${MUSIC}`; ctx.fillText('𝄢', 20, 290); currentLevelData.checkpoints.forEach(cp => drawCheckpoint(ctx, cp));
+            ctx.fillStyle = C.ink; ctx.strokeStyle = C.ink;
+            if (T.print) { printFClef(ctx, 20, 290); printMensuration(ctx, 80, 290); }
+            else { ctx.font = `70px ${MUSIC}`; ctx.fillText('𝄢', 20, 290); }
+            currentLevelData.checkpoints.forEach(cp => drawCheckpoint(ctx, cp));
             if (!boss.active) {
-                ctx.strokeStyle = 'rgba(156, 107, 60, 0.35)';
+                ctx.strokeStyle = rgba(C.mark, T.mono ? 0.6 : 0.35);
                 ctx.lineWidth = 2;
                 ctx.setLineDash([6, 8]);
                 ctx.beginPath();
@@ -1926,8 +2472,16 @@ let devInvincible = false;
 
                 ctx.fillStyle = C.mark;
                 ctx.textAlign = 'left';
-                ctx.font = `60px ${MUSIC}`;
-                ctx.fillText('𝄡', currentLevelData.goal.x, 320);
+                if (T.print) {
+                    // final double bar with a custos, as at the end of a part
+                    const gx = currentLevelData.goal.x;
+                    if (T.hand) { nib(ctx, wob(gx + 4, 230, gx + 4, 350, 0.6), 2.6); nib(ctx, wob(gx + 13, 230, gx + 13, 350, 0.6), 7); }
+                    else { ctx.fillRect(gx + 3, 230, 2.4, 120); ctx.fillRect(gx + 10, 230, 6, 120); }
+                    ctx.strokeStyle = C.mark; printCustos(ctx, gx + 22, 300);
+                } else {
+                    ctx.font = `60px ${MUSIC}`;
+                    ctx.fillText('𝄡', currentLevelData.goal.x, 320);
+                }
 
                 // "Finalis" label
                 ctx.font = font(16, 600, true);
@@ -1937,25 +2491,33 @@ let devInvincible = false;
 
         if (boss.active) {
             ctx.textAlign = 'left';
-            ctx.fillStyle = C.red; ctx.font = `60px ${MUSIC}`; ctx.fillText('♯ ♭', boss.x - 20, boss.y + 60);
+            ctx.fillStyle = C.red; ctx.strokeStyle = C.red;
+            if (T.print) { printSharp(ctx, boss.x - 14, boss.y + 38, 1.6); printFlat(ctx, boss.x + 34, boss.y + 52, 1.6); }
+            else { ctx.font = `60px ${MUSIC}`; ctx.fillText('♯ ♭', boss.x - 20, boss.y + 60); }
             pill(boss.x - 20, boss.y - 20, 80, 6, C.line); 
             if (boss.hp > 0) pill(boss.x - 20, boss.y - 20, Math.max(6, 80 * (boss.hp / boss.maxHp)), 6, C.red);
-            ctx.fillStyle = C.red; ctx.font = font(12, 600); ctx.fillText('MI-FA (Diabolus in Musica)', boss.x - 40, boss.y - 30);
-            ctx.fillStyle = C.red; ctx.font = `26px ${MUSIC}`; boss.projectiles.forEach(bp => { ctx.fillText(Math.random() > 0.5 ? '♭' : '♯', bp.x, bp.y + 20); });
+            ctx.fillStyle = C.red; ctx.font = font(12, 600, false, 'sc'); ctx.fillText('MI-FA (Diabolus in Musica)', boss.x - 40, boss.y - 30);
+            ctx.fillStyle = C.red; ctx.strokeStyle = C.red; ctx.font = `26px ${MUSIC}`;
+            boss.projectiles.forEach(bp => {
+                const fl = Math.random() > 0.5;
+                if (T.print) { if (fl) printFlat(ctx, bp.x + 3, bp.y + 16, 0.7); else printSharp(ctx, bp.x + 2, bp.y + 8, 0.7); }
+                else ctx.fillText(fl ? '♭' : '♯', bp.x, bp.y + 20);
+            });
         }
 
-        currentLevelData.walls.forEach(wall => { ctx.fillStyle = C.ink; pathRoundRect(ctx, wall.x, wall.y, wall.w, wall.h, 3); ctx.fill(); });
+        currentLevelData.walls.forEach(wall => { ctx.fillStyle = C.ink; if (T.hand) nib(ctx, wob(wall.x + wall.w / 2, wall.y, wall.x + wall.w / 2, wall.y + wall.h, 0.6), Math.max(3, wall.w)); else { pathRoundRect(ctx, wall.x, wall.y, wall.w, wall.h, T.print ? 0 : 3); ctx.fill(); } });
         currentLevelData.fallingLongas.forEach(l => {
             if (!l.dead) {
                 let lx = l.x;
                 if (l.state === 'shaking') lx += (Math.random() > 0.5 ? 2 : -2);
                 ctx.fillStyle = (l.state === 'shaking' || l.state === 'falling') ? C.redHot : C.red;
-                pathRoundRect(ctx, lx, l.y, 12, 60, 3); ctx.fill();
+                if (T.mono) { ctx.lineWidth = 2.4; ctx.strokeStyle = C.ink; ctx.strokeRect(lx + 1.2, l.y + 1.2, 9.6, 57.6); ctx.beginPath(); ctx.moveTo(lx, l.y); ctx.lineTo(lx + 12, l.y + 60); ctx.stroke(); }
+                else { pathRoundRect(ctx, lx, l.y, 12, 60, T.print ? 0 : 3); ctx.fill(); }
             }
         });
         currentLevelData.platforms.forEach(plat => drawLigature(ctx, plat));
 
-        ctx.fillStyle = C.mark; currentLevelData.scoreNotes.forEach(note => { if (note.active) drawDiamond(ctx, note.x + 7, note.y + 7, 8, true); });
+        ctx.fillStyle = T.print ? C.ink : C.mark; currentLevelData.scoreNotes.forEach(note => { if (note.active) drawDiamond(ctx, note.x + 7, note.y + 7, 8, true); });
 
         ctx.textAlign = 'left';
         ctx.fillStyle = C.blue; ctx.font = font(34, 700);
@@ -1966,17 +2528,24 @@ let devInvincible = false;
             }
         });
 
-        ctx.strokeStyle = C.mark; ctx.lineWidth = 3;
+        ctx.strokeStyle = T.print ? C.ink : C.mark; ctx.lineWidth = 3;
         currentLevelData.tempusItems.forEach(item => { if (item.active) { ctx.beginPath(); ctx.arc(item.x + 12.5, item.y + 12.5, 10, 0, Math.PI * 2); ctx.stroke(); } });
         ctx.fillStyle = C.ink; currentLevelData.inkPots.forEach(pot => { if (pot.active) { ctx.beginPath(); ctx.arc(pot.x + 10, pot.y + 15, 10, 0, Math.PI*2); ctx.fill(); pathRoundRect(ctx, pot.x + 5, pot.y, 10, 10, 2); ctx.fill(); } });
 
-        currentLevelData.enemies.forEach(e => { if(!e.dead) { ctx.fillStyle = e.aggro ? C.redHot : C.red; pathRoundRect(ctx, e.x, e.y, e.w, e.h, 3); ctx.fill(); } });
-        ctx.fillStyle = C.red; ctx.font = `30px ${MUSIC}`; currentLevelData.jumpingFlats.forEach(flat => { if (!flat.dead && flat.state !== 'hidden') ctx.fillText('♭', flat.x, flat.y + 25); });
-        ctx.fillStyle = C.red; ctx.font = `40px ${MUSIC}`; currentLevelData.flyingEnemies.forEach(e => { if(!e.dead) ctx.fillText('♯', e.x, e.y + 35); });
+        currentLevelData.enemies.forEach(e => {
+            if (e.dead) return;
+            ctx.fillStyle = e.aggro ? C.redHot : C.red; ctx.strokeStyle = ctx.fillStyle;
+            if (T.mono) { ctx.lineWidth = 2.4; ctx.strokeRect(e.x + 1.2, e.y + 1.2, e.w - 2.4, e.h - 2.4); ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + e.w, e.y + e.h); ctx.moveTo(e.x + e.w, e.y); ctx.lineTo(e.x, e.y + e.h); ctx.stroke(); if (e.aggro) ctx.fillRect(e.x, e.y, e.w, e.h * 0.35); }
+            else { pathRoundRect(ctx, e.x, e.y, e.w, e.h, T.print ? 0 : 3); ctx.fill(); }
+        });
+        ctx.fillStyle = C.red; ctx.strokeStyle = C.red; ctx.font = `30px ${MUSIC}`;
+        currentLevelData.jumpingFlats.forEach(flat => { if (!flat.dead && flat.state !== 'hidden') { if (T.print) printFlat(ctx, flat.x + 4, flat.y + 22); else ctx.fillText('♭', flat.x, flat.y + 25); } });
+        ctx.fillStyle = C.red; ctx.strokeStyle = C.red; ctx.font = `40px ${MUSIC}`;
+        currentLevelData.flyingEnemies.forEach(e => { if (!e.dead) { if (T.print) printSharp(ctx, e.x + 5, e.y + 20); else ctx.fillText('♯', e.x, e.y + 35); } });
         ctx.fillStyle = C.ink; projectiles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill(); });
 
-        if (gameMode === 'ENDLESS') { ctx.fillStyle = 'rgba(59, 49, 37, 0.9)'; ctx.fillRect(cameraX - 1000, -500, 1000 - 24, H + 1000); ctx.fillStyle = C.red; ctx.fillRect(cameraX - 26, -500, 2, H + 1000); }
-        else if (gameMode === 'GRADUS') { ctx.fillStyle = 'rgba(59, 49, 37, 0.9)'; ctx.fillRect(-1000, cameraY + H + 24, W + 2000, 1000); ctx.fillStyle = C.red; ctx.fillRect(-1000, cameraY + H + 24, W + 2000, 2); }
+        if (gameMode === 'ENDLESS') { ctx.fillStyle = rgba(C.ink, T.print ? 1 : 0.9); ctx.fillRect(cameraX - 1000, -500, 1000 - 24, H + 1000); ctx.fillStyle = C.red; ctx.fillRect(cameraX - 26, -500, 2, H + 1000); }
+        else if (gameMode === 'GRADUS') { ctx.fillStyle = rgba(C.ink, T.print ? 1 : 0.9); ctx.fillRect(-1000, cameraY + H + 24, W + 2000, 1000); ctx.fillStyle = C.red; ctx.fillRect(-1000, cameraY + H + 24, W + 2000, 2); }
 
         if (currentLevelData.hasFuga && player.history.length === 60) { let ghost = player.history[0]; drawMensuralNote(ctx, ghost.x, ghost.y, noteStates[ghost.state], false, 0.6, false, true); }
 
@@ -1984,7 +2553,7 @@ let devInvincible = false;
         trail.forEach((t, i) => drawMensuralNote(ctx, t.x, t.y, noteStates[t.state], false, (i+1)/14, isColored));
         drawMensuralNote(ctx, player.x, player.y, noteStates[getStateIndex(player.stateValue)], player.invulnerableTimer > 0, 1, isColored);
 
-        particles.forEach(p => { ctx.fillStyle = p.color === '#b30000' ? C.red : (p.color || 'rgba(138, 123, 102, 0.45)'); ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2); ctx.fill(); });
+        particles.forEach(p => { ctx.fillStyle = p.color === '#b30000' ? C.red : (p.color || rgba(C.soft, 0.45)); ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2); ctx.fill(); });
         ctx.restore();
 
         if (gameState === 'SPLASH') {
@@ -1996,12 +2565,12 @@ let devInvincible = false;
             const splashLabel = colon > 0 ? titleSplash.slice(0, colon) : '';
             const splashName = colon > 0 ? titleSplash.slice(colon + 1).trim() : titleSplash;
             if (splashLabel) {
-                ctx.fillStyle = C.mark; ctx.font = font(13, 700); spacing(3);
+                ctx.fillStyle = C.mark; ctx.font = font(13, 700, false, "sc"); spacing(3);
                 ctx.fillText(splashLabel.toUpperCase(), W / 2 + 1.5, 92);
                 spacing(0);
             }
             let nameSize = 42;
-            for (;;) { ctx.font = font(nameSize, 800); if (ctx.measureText(splashName).width <= 700 || nameSize <= 22) break; nameSize -= 2; }
+            for (;;) { ctx.font = font(nameSize, 800, false, "display"); if (ctx.measureText(splashName).width <= 700 || nameSize <= 22) break; nameSize -= 2; }
             ctx.fillStyle = C.ink;
             ctx.fillText(splashName, W / 2, 142);
 
@@ -2037,7 +2606,7 @@ let devInvincible = false;
                 ctx.fillText(quoteAuthor, W / 2, qy + 4);
             }
 
-            ctx.fillStyle = `rgba(156, 107, 60, ${0.55 + Math.sin(Date.now() / 300) * 0.45})`;
+            ctx.fillStyle = rgba(C.mark, T.print ? 1 : 0.55 + Math.sin(Date.now() / 300) * 0.45);
             ctx.font = font(14, 600);
             ctx.fillText('Press any key or tap to continue', W / 2, H - 40);
         } else if (gameState !== 'DEATH_FREEZE' && gameState !== 'WIN' && gameState !== 'MENU' && gameState !== 'PAUSE') {
@@ -2087,10 +2656,10 @@ let devInvincible = false;
             if (gameState !== 'SPLASH') {
             // Soft paper band so the HUD stays readable over the level
             const hudFade = ctx.createLinearGradient(0, 0, 0, 84);
-            hudFade.addColorStop(0, 'rgba(255, 253, 248, 0.92)');
-            hudFade.addColorStop(0.7, 'rgba(255, 253, 248, 0.75)');
-            hudFade.addColorStop(1, 'rgba(255, 253, 248, 0)');
-            ctx.fillStyle = hudFade; ctx.fillRect(0, 0, W, 84);
+            hudFade.addColorStop(0, rgba(C.paper, 0.92));
+            hudFade.addColorStop(0.7, rgba(C.paper, 0.75));
+            hudFade.addColorStop(1, rgba(C.paper, 0));
+            if (!T.print) { ctx.fillStyle = hudFade; ctx.fillRect(0, 0, W, 84); }
 
             if (gameMode === 'CLASSIC') {
                 let progress = player.x / currentLevelData.goal.x; if (progress > 1) progress = 1; if (progress < 0) progress = 0;
@@ -2099,14 +2668,14 @@ let devInvincible = false;
             }
 
             ctx.textAlign = 'left';
-            ctx.fillStyle = C.soft;
-            ctx.font = font(11, 700); spacing(2);
+            ctx.fillStyle = (T.print && !T.mono) ? C.red : C.soft;
+            ctx.font = font(11, 700, false, "sc"); spacing(2);
             const modeLabel = modesData[currentLevel].name.split(':')[0];
             ctx.fillText(modeLabel.toUpperCase(), 24, 30);
             spacing(0);
 
             ctx.fillStyle = C.ink;
-            ctx.font = font(20, 800);
+            ctx.font = font(22, 800, false, "display");
             ctx.fillText(modesData[currentLevel].modeName, 24, 54);
 
             const maxQuoteWidth = 380;
@@ -2145,7 +2714,7 @@ let devInvincible = false;
             ctx.textAlign = 'right';
             const mins = Math.floor(levelTime / 60), secs = Math.floor(levelTime % 60);
             ctx.fillStyle = C.ink;
-            ctx.font = font(22, 800);
+            ctx.font = font(22, 800, false, "display");
             ctx.fillText(mins + ':' + secs.toString().padStart(2, '0'), W - 24, 38);
 
             ctx.fillStyle = C.soft;
@@ -2184,7 +2753,7 @@ let devInvincible = false;
 
             ctx.textAlign = 'center';
             ctx.fillStyle = C.red;
-            ctx.font = font(44, 800); spacing(4);
+            ctx.font = font(44, 800, false, "display"); spacing(4);
             ctx.fillText('CANTUS INTERRUPTUS', W / 2 + 2, H / 2 + 6);
             spacing(0);
 
@@ -2230,8 +2799,12 @@ let devInvincible = false;
             accumulator -= FIXED_DT_MS;
         }
         draw();
+        fx.render();
         requestAnimationFrame(loop); 
     }
+    let savedTheme = 'modern';
+    try { savedTheme = localStorage.getItem('mensuratorTheme') || 'modern'; } catch (e) {}
+    applyTheme(savedTheme);
     requestAnimationFrame(loop);
 </script>
 </body>
