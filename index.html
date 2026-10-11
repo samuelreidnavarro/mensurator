@@ -614,11 +614,12 @@ let devInvincible = false;
         () => { gameMode = 'CLASSIC'; currentLevel = 0; startGame(); },
         () => { gameMode = 'ENDLESS'; currentLevel = 0; startGame(); },
         () => { gameMode = 'GRADUS'; currentLevel = 0; startGame(); },
+        () => { gameMode = 'KART'; currentLevel = 0; startGame(); },
         () => { gameState = 'LEADERBOARD'; loadLeaderboard(); }
     ];
-    const MENU_LABELS = ['Ars Antiqua (Classic)', 'Ars Nova (Endless)', 'Gradus ad Parnassum', 'Magistri Mensurarum'];
+    const MENU_LABELS = ['Ars Antiqua (Classic)', 'Ars Nova (Endless)', 'Gradus ad Parnassum', 'Cursus (Kart)', 'Magistri Mensurarum'];
     const MODERN_MENU = [[150, 160], [406, 160], [150, 228], [406, 228]].map(([x, y], i) => ({ x, y, w: 244, h: 56, label: MENU_LABELS[i], primary: i === 0, action: MENU_ACTIONS[i] }));
-    const PRINT_MENU = MENU_LABELS.map((label, i) => ({ x: 232, y: 212 + i * 34, w: 330, h: 32, label, primary: i === 0, action: MENU_ACTIONS[i] }));
+    const PRINT_MENU = MENU_LABELS.map((label, i) => ({ x: 232, y: 200 + i * 29, w: 330, h: 28, label, primary: i === 0, action: MENU_ACTIONS[i] }));
     let MENU_BTNS = MODERN_MENU;
     const INSTALL_BTN = { x: 696, y: 16, w: 88, h: 30 };
     const THEME_BTN = { x: 584, y: 16, w: 104, h: 30 };
@@ -1395,9 +1396,9 @@ let devInvincible = false;
     function releaseRight() { keys.right = false; player.isSprinting = false; player.isTripleSprinting = false; }
     function pressLeft() { keys.left = true; let now = Date.now(); if (now - lastLeftTap < 250) leftTapCount++; else leftTapCount = 1; lastLeftTap = now; if (leftTapCount >= 3) player.isTripleSprinting = true; else if (leftTapCount >= 2) player.isSprinting = true; }
     function releaseLeft() { keys.left = false; player.isSprinting = false; player.isTripleSprinting = false; }
-    function pressJump() { keys.up = true; if (gameState === 'PLAY') { let sm = speedSettings[difficultyIndex].mult; let maxJumps = (player.stateIndex >= 11) ? 3 : 2; if (player.jumps < maxJumps) { player.vy = player.jumpPower * sm; spawnDust(player.x, player.y); player.grounded = false; player.jumps++; playSound('jump'); } } }
+    function pressJump() { keys.up = true; if (gameMode === 'KART') return; if (gameState === 'PLAY') { let sm = speedSettings[difficultyIndex].mult; let maxJumps = (player.stateIndex >= 11) ? 3 : 2; if (player.jumps < maxJumps) { player.vy = player.jumpPower * sm; spawnDust(player.x, player.y); player.grounded = false; player.jumps++; playSound('jump'); } } }
     function releaseJump() { keys.up = false; }
-    function pressShoot() { keys.space = true; if (gameState === 'PLAY') { projectiles.push({x: player.x + 12, y: player.y + 25, vx: keys.left ? -25 : 25, active: true}); playSound('shoot'); } }
+    function pressShoot() { keys.space = true; if (gameMode === 'KART') { if (gameState === 'PLAY' && kart) kartUseItem(kart.p); return; } if (gameState === 'PLAY') { projectiles.push({x: player.x + 12, y: player.y + 25, vx: keys.left ? -25 : 25, active: true}); playSound('shoot'); } }
     function releaseShoot() { keys.space = false; }
     
     function togglePause() {
@@ -1511,6 +1512,7 @@ let devInvincible = false;
                 if (e.key === '1') { gameMode = 'CLASSIC'; currentLevel = 0; startGame(); }
                 else if (e.key === '2') { gameMode = 'ENDLESS'; currentLevel = 0; startGame(); }
                 else if (e.key === '3') { gameMode = 'GRADUS'; currentLevel = 0; startGame(); }
+                else if (e.key === '4') { gameMode = 'KART'; currentLevel = 0; startGame(); }
             }
             return;
         }
@@ -1805,6 +1807,7 @@ let devInvincible = false;
         document.getElementById('fsBtn').style.display = 'none';
         unlockAudio(); 
         previousState = 'PLAY';
+        if (gameMode === 'KART') { kartStart(); return; }
 
         // 1. If respawning from a Classic mode death, DO NOT reset time or score!
         if (gameState === 'DEATH_FREEZE' && gameMode === 'CLASSIC') { 
@@ -1953,6 +1956,7 @@ let devInvincible = false;
     }
 
     function update() {
+        if (gameMode === 'KART') { if ((gameState === 'PLAY' || gameState === 'WIN') && kart) kartUpdate(); return; }
         if (gameState !== 'PLAY') return;
         
         const speedMult = speedSettings[difficultyIndex].mult;
@@ -2488,6 +2492,7 @@ let devInvincible = false;
         }
 
         if (gameState === 'MENU' || gameState === 'OPTIONS') { drawMenu(); return; }
+        if (gameMode === 'KART' && kart && ['PLAY', 'SPLASH', 'WIN', 'PAUSE'].includes(gameState)) { kartDraw(); return; }
 
         if (gameState === 'PLAY' || gameState === 'SPLASH' || gameState === 'DEATH_FREEZE' || gameState === 'WIN') {
             ctx.save(); ctx.translate(-cameraX, -cameraY);
@@ -2838,6 +2843,504 @@ let devInvincible = false;
             ctx.font = font(13, 600);
             ctx.fillText('Tap anywhere to return', W / 2, H - 30);
         }
+    }
+
+    // ===== Cursus: a kart race along a staff, drawn as a pseudo-3D road =====
+    const KART = { SEG: 200, ROAD: 1000, DRAW: 170, CAM_H: 1000, HY: 166, VS: 200, LAPS: 3, KW: 0.14 };
+    KART.depth = 1 / Math.tan(50 * Math.PI / 180);
+    KART.playerZ = KART.CAM_H * KART.depth;
+    const RIVALS = [
+        { name: 'Maxima', note: 'MAXIMA', skill: 0.955 }, { name: 'Longa', note: 'LONGA', skill: 0.965 },
+        { name: 'Brevis', note: 'BREVIS', skill: 0.985 }, { name: 'Semibrevis', note: 'SEMIBREVIS', skill: 0.975 },
+        { name: 'Fusa', note: 'FUSA', skill: 0.995 }
+    ];
+    const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'];
+    let kart = null, kartTrack = null;
+    const kmod = (n, m) => ((n % m) + m) % m;
+    const klerp = (a, b, t) => a + (b - a) * t;
+
+    function kartBuildTrack() {
+        const S = KART.SEG, segs = [];
+        const lastY = () => segs.length ? segs[segs.length - 1].p2.y : 0;
+        const add = (curve, y) => { const i = segs.length; segs.push({ i, curve, p1: { y: lastY(), z: i * S }, p2: { y, z: (i + 1) * S }, sprites: [] }); };
+        const easeIn = (a, b, t) => a + (b - a) * t * t;
+        const easeInOut = (a, b, t) => a + (b - a) * (-Math.cos(t * Math.PI) / 2 + 0.5);
+        const road = (enter, hold, leave, curve, hill) => {
+            const y0 = lastY(), y1 = y0 + hill * S, n = enter + hold + leave; let k = 0;
+            for (let i = 0; i < enter; i++) add(easeIn(0, curve, i / enter), easeInOut(y0, y1, ++k / n));
+            for (let i = 0; i < hold; i++) add(curve, easeInOut(y0, y1, ++k / n));
+            for (let i = 0; i < leave; i++) add(easeInOut(curve, 0, i / leave), easeInOut(y0, y1, ++k / n));
+        };
+        road(10, 60, 10, 0, 0);
+        road(30, 60, 30, 3, 0);
+        road(20, 50, 20, 0, 18);
+        road(30, 80, 30, -4, 0);
+        road(25, 40, 25, 0, -18);
+        road(25, 50, 25, 5, 0);
+        road(25, 50, 25, -5, 0);
+        road(20, 60, 20, 0, 26);
+        road(30, 90, 30, 3, -26);
+        road(25, 50, 25, -2.5, 0);
+        road(15, 50, 15, 0, 0);
+        const N = segs.length, r = rng(11), signs = ['O', 'C', 'O.', 'C.', 'C|'];
+        segs[3].sprites.push({ kind: 'banner', x: 0 });
+        for (let i = 14; i < N - 6; i++) {
+            const c = segs[i].curve;
+            // mensuration signs on the outside of every bend
+            if (Math.abs(c) > 1.5 && i % 6 === 0) segs[i].sprites.push({ kind: 'sign', x: c > 0 ? -1.3 : 1.3, sign: signs[(i / 6) % signs.length | 0], solid: true, hw: 0.13 });
+            if (i % 5 === 0 && r() < 0.75) { const side = r() < 0.5 ? -1 : 1; segs[i].sprites.push({ kind: r() < 0.8 ? 'tree' : 'leaf', x: side * (1.5 + r() * 2.2), solid: true, hw: 0.2, seed: r() }); }
+            if (i % 9 === 4 && r() < 0.5) segs[i].sprites.push({ kind: 'leaf', x: (r() < 0.5 ? -1 : 1) * (1.25 + r() * 0.3), solid: false, seed: r() });
+        }
+        const boxes = [];
+        [0.16, 0.47, 0.76].forEach(f => [-0.6, -0.2, 0.2, 0.6].forEach(x => boxes.push({ seg: Math.floor(N * f), x, hidden: 0 })));
+        return { segs, len: N * S, boxes };
+    }
+
+    function kartStart() {
+        if (!kartTrack) kartTrack = kartBuildTrack();
+        kartTrack.boxes.forEach(b => b.hidden = 0);
+        const S = KART.SEG;
+        resetPlayer(0, 0);
+        const racer = (o, k) => Object.assign({ x: k % 2 ? 0.42 : -0.42, total: -S * (2 + Math.floor(k / 2) * 3), speed: 0, lap: 0, item: null, itemT: 0, roll: 0, drift: 0, charge: 0, hop: 0, boost: 0, star: 0, spin: 0, finish: null, lean: 0 }, o);
+        const cars = RIVALS.map((r, i) => racer(Object.assign({ lane: 0 }, r), i < 4 ? i : 5));
+        cars.forEach(c => c.lane = c.x);
+        kart = {
+            t: 0, count: 3.6, done: false, doneT: 0, bg: 0, tempus: 0, banner: 0, shake: 0, frame: 0,
+            maxSpeed: S * 60 * 0.9 * speedSettings[difficultyIndex].mult,
+            p: racer({ name: 'Minima', note: 'MINIMA', me: true, upWas: false, rocket: 0 }, 4),
+            cars, flats: [], sharps: [], best: null
+        };
+        try { const b = parseFloat(localStorage.getItem('mensuratorKartBest')); if (b > 0) kart.best = b; } catch (e) {}
+        currentLevel = 4; levelTime = 0;
+        gameState = 'SPLASH';
+    }
+
+    const kartSeg = total => kartTrack.segs[Math.floor(kmod(total, kartTrack.len) / KART.SEG) % kartTrack.segs.length];
+    const kartRacers = () => [kart.p, ...kart.cars];
+    function kartOrder() {
+        return kartRacers().sort((a, b) => (a.finish != null && b.finish != null) ? a.finish - b.finish : a.finish != null ? -1 : b.finish != null ? 1 : b.total - a.total);
+    }
+    function kartPickItem(place) {
+        const tables = [
+            [['flat', 5], ['sharp', 4], ['allabreve', 1]],
+            [['sharp', 35], ['flat', 25], ['allabreve', 30], ['tempus', 5], ['ink', 5]],
+            [['allabreve', 35], ['ink', 20], ['tempus', 20], ['sharp', 25]]
+        ];
+        const t = tables[place === 1 ? 0 : place <= 3 ? 1 : 2];
+        let r = Math.random() * t.reduce((s, e) => s + e[1], 0);
+        for (const [k, w] of t) { if ((r -= w) < 0) return k; }
+        return t[0][0];
+    }
+    function kartSpin(r) {
+        if (r.star > 0 || r.spin > 0) return;
+        r.spin = 1; r.drift = 0; r.charge = 0;
+        playSound(r.me ? 'damage' : 'smash');
+    }
+    function kartUseItem(r) {
+        const it = r.item;
+        if (!it || r.roll > 0 || !kart || kart.count > 0) return;
+        r.item = null;
+        const L = kartTrack.len;
+        if (it === 'allabreve') { r.boost = 1.2; if (r.me) playSound('allaBreve'); }
+        else if (it === 'flat') { kart.flats.push({ z: kmod(r.total - 170, L), x: r.x }); if (r.me) playSound('shoot'); }
+        else if (it === 'sharp') { kart.sharps.push({ total: r.total + 170, x: r.x, speed: Math.max(r.speed, kart.maxSpeed) * 1.45, life: 4, owner: r, spin: 0 }); if (r.me) playSound('shoot'); }
+        else if (it === 'tempus') { kart.tempus = 3.5; playSound('tempus'); }
+        else if (it === 'ink') { r.star = 5; playSound('point'); }
+    }
+
+    function kartUpdate() {
+        const dt = 1 / 60, S = KART.SEG, L = kartTrack.len, N = kartTrack.segs.length, p = kart.p, max = kart.maxSpeed;
+        kart.frame++;
+        if (kart.count > 0) {
+            const before = Math.ceil(kart.count);
+            kart.count -= dt;
+            p.rocket = keys.up ? p.rocket + dt : 0;
+            if (Math.ceil(kart.count) !== before && before <= 3 && kart.count > 0) playSound('point');
+            if (kart.count <= 0) { playSound('allaBreve'); if (p.rocket > 0.1 && p.rocket < 1.1) p.boost = 1; p.upWas = keys.up; }
+            return;
+        }
+        if (!kart.done) kart.t += dt; else kart.doneT += dt;
+        if (kart.done && kart.doneT > 2.5 && gameState === 'PLAY') { gameState = 'WIN'; if (musicTimeout) clearTimeout(musicTimeout); }
+        if (kart.tempus > 0) kart.tempus -= dt;
+        if (kart.banner > 0) kart.banner -= dt;
+        if (kart.shake > 0) kart.shake -= dt;
+
+        // --- the player ---
+        const seg = kartSeg(p.total), pct = p.speed / max;
+        const auto = kart.done;
+        const ahead = kartTrack.segs[(seg.i + 10) % N];
+        const steer = auto ? Math.sign(Math.round((-ahead.curve * 0.08 - p.x) * 4)) : (keys.left ? -1 : 0) + (keys.right ? 1 : 0);
+        const up = !auto && keys.up, down = !auto && keys.down;
+        // hop on the drift key; hold it through a bend for a burst of speed when released
+        if (up && !p.upWas) { p.hop = 0.22; playSound('jump'); if (steer !== 0 && pct > 0.4 && p.spin <= 0) { p.drift = steer; p.charge = 0; } }
+        if (p.drift && (!up || pct < 0.3 || p.spin > 0)) {
+            if (!up && p.spin <= 0 && p.charge > 0.75) { p.boost = p.charge > 1.6 ? 1.1 : 0.6; playSound('allaBreve'); }
+            p.drift = 0; p.charge = 0;
+        }
+        p.upWas = up;
+        if (p.hop > 0) p.hop -= dt;
+        const dx = dt * 2.2 * pct;
+        if (p.drift) { p.x += dx * (p.drift * 0.62 + steer * 0.55); p.charge += dt * (steer === p.drift ? 1.4 : 0.8); p.x -= dx * pct * seg.curve * 0.14; }
+        else { p.x += dx * steer; p.x -= dx * pct * seg.curve * 0.24; }
+        p.lean += ((p.drift ? p.drift * 1.6 : steer) - p.lean) * 0.2;
+
+        if (p.boost > 0) p.boost -= dt;
+        if (p.star > 0) { p.star -= dt; player.colorationTimer = Math.max(0, p.star * 60); } else player.colorationTimer = 0;
+        const top = max * (p.boost > 0 ? 1.3 : 1) * (p.star > 0 ? 1.15 : 1);
+        const off = Math.abs(p.x) > 1;
+        if (p.spin > 0) { p.spin -= dt; p.speed *= 0.94; }
+        else if (down) p.speed -= max * 1.2 * dt;
+        else if (p.speed < top) p.speed = Math.min(top, p.speed + max * (p.boost > 0 ? 1.6 : 0.3) * dt);
+        else p.speed = Math.max(top, p.speed - max * 0.4 * dt);
+        if (off && p.star <= 0 && p.speed > max * 0.35) p.speed -= max * 0.9 * dt;
+        p.speed = Math.max(0, p.speed);
+        p.x = Math.max(-2.3, Math.min(2.3, p.x));
+        if (off) for (const s of seg.sprites) {
+            if (s.solid && Math.abs(p.x - s.x) < s.hw + KART.KW) {
+                if (p.star > 0) break;
+                p.speed = Math.min(p.speed, max * 0.12); p.x += (p.x > s.x ? 1 : -1) * 0.07; kart.shake = 0.3; playSound('damage');
+                break;
+            }
+        }
+        const dz = p.speed * dt;
+        p.total += dz;
+        kart.bg += seg.curve * (dz / S) * 0.0016;
+
+        // --- rivals ---
+        for (const c of kart.cars) {
+            const cs = kartSeg(c.total), ca = kartTrack.segs[(cs.i + 12) % N];
+            if (c.boost > 0) c.boost -= dt;
+            if (c.spin > 0) { c.spin -= dt; c.speed *= 0.94; }
+            else {
+                const gap = (p.total - c.total) / L;
+                const rubber = Math.max(0.9, Math.min(1.15, 1 + gap * 0.8));
+                const ctop = max * c.skill * rubber * (c.boost > 0 ? 1.3 : 1) * (kart.tempus > 0 ? 0.6 : 1) * (1 - Math.abs(cs.curve) * 0.006);
+                c.speed = c.speed < ctop ? Math.min(ctop, c.speed + max * 0.3 * dt) : Math.max(ctop, c.speed - max * 0.6 * dt);
+                if (Math.random() < 0.004) c.lane = (Math.random() - 0.5) * 1.2;
+                // the inside of the coming bend, and round anyone slower ahead
+                let tx = c.lane - ca.curve * 0.09;
+                const block = kartRacers().find(o => o !== c && o.total - c.total > 0 && o.total - c.total < S * 8 && Math.abs(o.x - tx) < 0.3 && o.speed < c.speed);
+                if (block) tx = block.x > 0 ? block.x - 0.42 : block.x + 0.42;
+                tx = Math.max(-0.82, Math.min(0.82, tx));
+                c.x += (tx - c.x) * Math.min(1, dt * 2.5);
+                if (c.item) { c.itemT -= dt; if (c.itemT <= 0) kartUseItem(c); }
+            }
+            c.total += c.speed * dt;
+            if (c.finish == null && c.total >= KART.LAPS * L) c.finish = kart.t + kart.doneT;
+        }
+
+        // bumping
+        for (const c of kart.cars) {
+            const gz = c.total - p.total, ox = c.x - p.x;
+            if (Math.abs(gz) < 140 && Math.abs(ox) < KART.KW * 2) {
+                if (p.star > 0) { kartSpin(c); continue; }
+                const side = ox >= 0 ? 1 : -1;
+                if (gz > 0 && p.speed > c.speed) { p.speed = c.speed * 0.9; p.x -= side * 0.05; playSound('bounce'); }
+                else if (gz <= 0 && c.speed > p.speed) { c.speed = p.speed * 0.9; c.x += side * 0.05; }
+                else { p.x -= side * 0.02; c.x += side * 0.02; }
+            }
+        }
+
+        // item boxes
+        for (const b of kartTrack.boxes) {
+            if (b.hidden > 0) { b.hidden -= dt; continue; }
+            const bz = b.seg * S + S / 2;
+            for (const r of kartRacers()) {
+                const d = Math.abs(kmod(r.total, L) - bz);
+                if (Math.min(d, L - d) < 110 && Math.abs(r.x - b.x) < 0.17 && r.total > 0) {
+                    b.hidden = 2.5;
+                    if (!r.item && !(r.roll > 0)) {
+                        if (r.me) { if (!kart.done) { r.roll = 1.1; playSound('point'); } }
+                        else { r.item = ['allabreve', 'flat', 'sharp'][Math.random() * 3 | 0]; r.itemT = 1 + Math.random() * 3; }
+                    }
+                    break;
+                }
+            }
+        }
+        if (p.roll > 0) { p.roll -= dt; if (p.roll <= 0) p.item = kartPickItem(kartOrder().indexOf(p) + 1); }
+
+        // flats lie where they fell; sharps fly straight down the road
+        for (let i = kart.flats.length - 1; i >= 0; i--) {
+            const f = kart.flats[i];
+            for (const r of kartRacers()) {
+                const d = Math.abs(kmod(r.total, L) - f.z);
+                if (Math.min(d, L - d) < 90 && Math.abs(r.x - f.x) < 0.16) { kartSpin(r); kart.flats.splice(i, 1); break; }
+            }
+        }
+        for (let i = kart.sharps.length - 1; i >= 0; i--) {
+            const s = kart.sharps[i];
+            s.total += s.speed * dt; s.life -= dt; s.spin += dt * 12;
+            let hit = s.life <= 0;
+            if (!hit) for (const r of kartRacers()) {
+                if (r === s.owner && s.life > 3.6) continue;
+                if (Math.abs(r.total - s.total) < 130 && Math.abs(r.x - s.x) < 0.2) { kartSpin(r); hit = true; break; }
+            }
+            if (hit) kart.sharps.splice(i, 1);
+        }
+
+        // circuits and the finish
+        const lap = Math.floor(p.total / L) + 1;
+        if (lap > p.lap) {
+            p.lap = lap;
+            if (lap === KART.LAPS) { kart.banner = 2.5; playSound('tempus'); }
+            if (lap > KART.LAPS && p.finish == null) {
+                p.finish = kart.t; kart.done = true; p.item = null; p.roll = 0;
+                playSound('point');
+                if (!kart.best || p.finish < kart.best) { kart.best = p.finish; kart.newBest = true; try { localStorage.setItem('mensuratorKartBest', String(p.finish)); } catch (e) {} }
+            }
+        }
+    }
+
+    // ----- drawing -----
+    function kartTime(t) { if (t == null) return '–'; const m = Math.floor(t / 60), s = t - m * 60; return `${m}:${s < 10 ? '0' : ''}${s.toFixed(2)}`; }
+
+    function kartBackdrop(off) {
+        const HY = KART.HY;
+        ctx.fillStyle = C.line; ctx.fillRect(0, HY - 0.5, W, 1);
+        // far hills, then near hills with a village, cut like a woodblock
+        const ridge = (wx, a) => a * (0.55 + 0.3 * Math.sin(wx * 6.283) + 0.18 * Math.sin(wx * 17.1 + 1) + 0.08 * Math.sin(wx * 41.3 + 2));
+        [[0.5, 30, C.line, 1], [1, 46, C.ink, 1.4]].forEach(([par, amp, col, lw]) => {
+            const o = off * par + (par < 1 ? 0.37 : 0);
+            ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath();
+            for (let X = 0; X <= W; X += 4) { const y = HY - ridge(X / W + o, amp); X ? ctx.lineTo(X, y) : ctx.moveTo(X, y); }
+            ctx.stroke();
+            if (par === 1) {
+                ctx.lineWidth = 0.8; ctx.beginPath();
+                for (let X = 2; X <= W; X += 5) { const h = ridge(X / W + o, amp), y = HY - h; ctx.moveTo(X, y + 3); ctx.lineTo(X - 1.5, y + 3 + h * 0.4); }
+                ctx.stroke();
+                // church towers stand on the ridge
+                ctx.lineWidth = 1.2; ctx.fillStyle = col;
+                [0.12, 0.47, 0.81].forEach((t, k) => {
+                    const X = kmod((t - o) * W, W * 1.0);
+                    if (X < -20 || X > W + 20) return;
+                    const y = HY - ridge(X / W + o, amp), w = 7 + k * 2, h = 18 + k * 6;
+                    ctx.strokeRect(X - w / 2, y - h, w, h);
+                    ctx.beginPath(); ctx.moveTo(X - w / 2 - 1, y - h); ctx.lineTo(X, y - h - w * 1.8); ctx.lineTo(X + w / 2 + 1, y - h); ctx.stroke();
+                    ctx.fillRect(X - 0.6, y - h - w * 1.8 - 6, 1.2, 6); ctx.fillRect(X - 2.5, y - h - w * 1.8 - 4.5, 5, 1.2);
+                    ctx.fillRect(X - 1, y - h * 0.6, 2, 4);
+                });
+            }
+        });
+    }
+
+    function kartTree(sx, sy, k, seed) {
+        // a woodcut tree: scalloped crown, a few cuts of shade, a plain trunk
+        ctx.save(); ctx.translate(sx, sy); ctx.scale(k, k);
+        ctx.fillStyle = C.ink; ctx.strokeStyle = C.ink;
+        ctx.fillRect(-24, -380, 48, 380);
+        const rx = 210 + seed * 70, ry = 250 + seed * 60, cy = -380 - ry * 0.85, rb = rx * 0.45;
+        const bumps = []; for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + seed; bumps.push([Math.cos(a) * rx * 0.7, cy + Math.sin(a) * ry * 0.7]); }
+        ctx.lineWidth = 34; ctx.beginPath(); bumps.forEach(([x, y]) => { ctx.moveTo(x + rb, y); ctx.arc(x, y, rb, 0, Math.PI * 2); }); ctx.stroke();
+        ctx.fillStyle = C.paper; ctx.beginPath(); bumps.forEach(([x, y]) => { ctx.moveTo(x + rb, y); ctx.arc(x, y, rb, 0, Math.PI * 2); }); ctx.ellipse(0, cy, rx * 0.75, ry * 0.75, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.lineWidth = 12; ctx.beginPath();
+        for (let i = 0; i < 7; i++) { const x0 = rx * (0.05 + i * 0.09), y0 = cy - ry * 0.35 + i * ry * 0.13; ctx.moveTo(x0, y0); ctx.lineTo(x0 + rx * 0.3, y0 + 14); }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function kartKart(r, sx, sy, f) {
+        ctx.save();
+        ctx.translate(sx, sy - (r.hop > 0 ? Math.sin(r.hop / 0.22 * Math.PI) * 14 * f : 0));
+        ctx.scale(f * 1.25, f * 1.25);
+        if (r.spin > 0) ctx.rotate(Math.sin(r.spin * 18) * 0.5); else ctx.rotate(r.lean * 0.05);
+        const body = r.me ? C.ink : C.red;
+        ctx.fillStyle = rgba(C.soft, 0.3); ctx.beginPath(); ctx.ellipse(0, -2, 50, 6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = C.ink;
+        ctx.fillRect(-46, -26, 15, 26); ctx.fillRect(31, -26, 15, 26);
+        ctx.fillStyle = body;
+        ctx.fillRect(-38, -34, 76, 4.5); ctx.fillRect(-38, -14.5, 76, 4.5); ctx.fillRect(-38, -34, 3, 24); ctx.fillRect(35, -34, 3, 24);
+        ctx.fillRect(-31, -16, 62, 2);
+        drawMensuralNote(ctx, -12, -87, r.note, false, 1, r.me && r.star > 0);
+        // sparks while drifting, puffs while boosting
+        if (r.drift) {
+            ctx.fillStyle = r.charge > 1.6 ? C.red : r.charge > 0.75 ? C.ink : C.soft;
+            for (let i = 0; i < 4; i++) { const s = r.drift > 0 ? -1 : 1; lozenge(ctx, s * (40 + Math.random() * 16), -4 - Math.random() * 12, 2.5, 3.5, true); lozenge(ctx, -s * (40 + Math.random() * 6), -2 - Math.random() * 6, 2, 3, true); }
+        }
+        if (r.boost > 0) { ctx.fillStyle = rgba(C.soft, 0.5); for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc((Math.random() - 0.5) * 50, 4 + Math.random() * 10, 3 + Math.random() * 4, 0, Math.PI * 2); ctx.fill(); } }
+        ctx.restore();
+    }
+
+    function kartItemGlyph(it, x, y, s = 1) {
+        ctx.fillStyle = C.red; ctx.strokeStyle = C.red;
+        if (it === 'allabreve') { ctx.fillStyle = C.blue; ctx.strokeStyle = C.blue; printMensuration(ctx, x, y, 'C|', 12 * s); }
+        else if (it === 'tempus') { ctx.fillStyle = C.ink; ctx.strokeStyle = C.ink; printMensuration(ctx, x, y, 'O', 12 * s); }
+        else if (it === 'flat') printFlat(ctx, x - 4 * s, y + 13 * s, 0.8 * s);
+        else if (it === 'sharp') printSharp(ctx, x - 8 * s, y, 0.8 * s);
+        else if (it === 'ink') { ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(x, y + 4 * s, 9 * s, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(x - 4.5 * s, y - 11 * s, 9 * s, 8 * s); }
+    }
+
+    function kartDraw() {
+        const K = KART, tr = kartTrack, segs = tr.segs, N = segs.length, L = tr.len, S = K.SEG, p = kart.p;
+        const shake = kart.shake > 0 ? (Math.random() - 0.5) * 4 : 0;
+        ctx.save(); ctx.translate(shake, 0);
+        kartBackdrop(kart.bg);
+
+        const camZ = kmod(p.total - K.playerZ, L);
+        const base = segs[Math.floor(camZ / S) % N], basePct = (camZ % S) / S;
+        const pz = kmod(p.total, L), pseg = segs[Math.floor(pz / S) % N];
+        const camY = klerp(pseg.p1.y, pseg.p2.y, (pz % S) / S) + K.CAM_H, camX = p.x * K.ROAD;
+        const proj = (pt, xoff, z) => { const s = K.depth / z; return { x: W / 2 + s * (xoff - camX) * W / 2, y: K.HY + s * (camY - pt.y) * K.VS, w: s * K.ROAD * W / 2, s, z }; };
+
+        const paths = {};
+        const P = (key, b) => (paths[key + b] || (paths[key + b] = { key, b, path: new Path2D() })).path;
+        const strip = (path, n, f, u0, u1, pn = 0, pf = 0) => {
+            path.moveTo(n.x + u0 * n.w - pn, n.y); path.lineTo(n.x + u1 * n.w + pn, n.y);
+            path.lineTo(f.x + u1 * f.w + pf, f.y); path.lineTo(f.x + u0 * f.w - pf, f.y); path.closePath();
+        };
+        const mid = (a, b, t) => ({ x: klerp(a.x, b.x, t), y: klerp(a.y, b.y, t), w: klerp(a.w, b.w, t) });
+        let maxy = H, xo = 0, dxo = -(base.curve * basePct);
+        for (let n = 0; n < K.DRAW; n++) {
+            const seg = segs[(base.i + n) % N], loop = seg.i < base.i ? L : 0;
+            const a = proj(seg.p1, xo, seg.p1.z + loop - camZ), b = proj(seg.p2, xo + dxo, seg.p2.z + loop - camZ);
+            seg.a = a; seg.b = b; seg.frame = kart.frame + 0.5; seg.n = n; seg.clip = maxy; seg.ok = a.z > K.depth;
+            xo += dxo; dxo += seg.curve;
+            if (!seg.ok || b.y >= a.y || b.y >= maxy) continue;
+            const near = a.y > maxy ? mid(a, b, (a.y - maxy) / (a.y - b.y)) : a;
+            const bk = n < 40 ? 0 : n < 80 ? 1 : n < 125 ? 2 : 3;
+            strip(P('band', bk), near, b, -1, 1);
+            strip(P(Math.floor(seg.i / 2) % 2 ? 'ink' : 'red', bk), near, b, -1.1, -1);
+            strip(P(Math.floor(seg.i / 2) % 2 ? 'ink' : 'red', bk), near, b, 1, 1.1);
+            for (const u of [-0.8, -0.4, 0, 0.4, 0.8]) strip(P('staff', bk), near, b, u, u, Math.max(0.35, near.w * 0.007), Math.max(0.35, b.w * 0.007));
+            if (seg.i % 12 === 0 && seg.i > 0) strip(P('ink', bk), near, mid(a, b, 0.16), -1, 1);
+            if (seg.i === 0) { strip(P('ink', bk), mid(a, b, 0.0), mid(a, b, 0.1), -1, 1); strip(P('ink', bk), mid(a, b, 0.28), mid(a, b, 0.75), -1, 1); }
+            if (Math.floor(seg.i / 3) % 2 === 0) {
+                const hp = P('hatch', bk);
+                for (let y = Math.ceil(b.y); y <= near.y; y++) {
+                    if (y % (T.mono ? 4 : 3)) continue;
+                    const t = (a.y - y) / (a.y - b.y), xc = klerp(a.x, b.x, t), wc = klerp(a.w, b.w, t);
+                    const l = xc - wc * 1.16, rr = xc + wc * 1.16;
+                    if (l > 0) hp.rect(0, y, l, 0.8);
+                    if (rr < W) hp.rect(rr, y, W - rr, 0.8);
+                }
+            }
+            maxy = b.y;
+        }
+        const colorOf = { band: C.band, ink: C.ink, red: T.mono ? null : C.red, staff: C.staff, hatch: T.mono ? C.ink : C.line };
+        const alphaOf = [1, 0.85, 0.6, 0.35];
+        ['band', 'hatch', 'ink', 'red', 'staff'].forEach(key => [3, 2, 1, 0].forEach(b => {
+            const e = paths[key + b]; if (!e || !colorOf[key]) return;
+            ctx.globalAlpha = alphaOf[b]; ctx.fillStyle = colorOf[key]; ctx.fill(e.path);
+        }));
+        ctx.globalAlpha = 1;
+
+        // everything standing on the road, back to front
+        const bucket = new Map();
+        const put = (z, o) => { const i = Math.floor(kmod(z, L) / S) % N; (bucket.get(i) || bucket.set(i, []).get(i)).push([(kmod(z, L) % S) / S, o]); };
+        kartRacers().forEach(r => put(r.total, { kind: 'kart', r }));
+        tr.boxes.forEach(b => { if (b.hidden <= 0) put(b.seg * S + S / 2, { kind: 'box', x: b.x }); });
+        kart.flats.forEach(f => put(f.z, { kind: 'flat', x: f.x }));
+        kart.sharps.forEach(s => put(s.total, { kind: 'sharp', x: s.x, spin: s.spin }));
+        for (let n = K.DRAW - 1; n > 0; n--) {
+            const seg = segs[(base.i + n) % N];
+            if (!seg.ok) continue;
+            const items = (bucket.get(seg.i) || []).sort((u, v) => v[0] - u[0]);
+            const all = seg.sprites.map(s => [0.5, s]).concat(items);
+            for (const [pc, o] of all) {
+                const s = klerp(seg.a.s, seg.b.s, pc), x0 = klerp(seg.a.x, seg.b.x, pc), sy = klerp(seg.a.y, seg.b.y, pc);
+                const ox = o.kind === 'kart' ? o.r.x : o.x;
+                const sx = x0 + s * ox * K.ROAD * W / 2, k = s * W / 2;
+                if (sx < -1300 * k - 50 || sx > W + 1300 * k + 50) continue;
+                const clipped = sy > seg.clip;
+                if (clipped) { if (sy - 1000 * k > seg.clip) continue; ctx.save(); ctx.beginPath(); ctx.rect(-10, -10, W + 20, seg.clip + 10); ctx.clip(); }
+                if (o.kind === 'tree') kartTree(sx, sy, k, o.seed);
+                else if (o.kind === 'leaf') { ctx.fillStyle = C.red; ctx.strokeStyle = C.red; ctx.fillRect(sx - 8 * k, sy - 300 * k, 16 * k, 300 * k); fleuron(ctx, sx, sy - 300 * k, k * 14); }
+                else if (o.kind === 'sign') {
+                    ctx.fillStyle = C.ink; ctx.strokeStyle = C.ink;
+                    ctx.fillRect(sx - 12 * k, sy - 520 * k, 24 * k, 520 * k);
+                    ctx.lineWidth = Math.max(1, 16 * k); ctx.strokeRect(sx - 130 * k, sy - 780 * k, 260 * k, 260 * k);
+                    ctx.fillStyle = C.red; ctx.strokeStyle = C.red; printMensuration(ctx, sx, sy - 650 * k, o.sign, 85 * k);
+                } else if (o.kind === 'banner') {
+                    ctx.fillStyle = C.ink; const pw = Math.max(1, 30 * k), bx = 1.18 * K.ROAD * k;
+                    ctx.fillRect(sx - bx - pw / 2, sy - 1050 * k, pw, 1050 * k); ctx.fillRect(sx + bx - pw / 2, sy - 1050 * k, pw, 1050 * k);
+                    ctx.fillRect(sx - bx, sy - 1050 * k, bx * 2, 14 * k); ctx.fillRect(sx - bx, sy - 800 * k, bx * 2, 14 * k);
+                    ctx.fillStyle = (T.hand || T.mono) ? C.ink : C.red; ctx.textAlign = 'center';
+                    ctx.font = `${Math.max(1, 200 * k)}px ${T.display}`; if (!T.hand) spacing(30 * k);
+                    ctx.fillText(T.hand ? 'Finalis' : 'FINALIS', sx, sy - 855 * k); spacing(0);
+                } else if (o.kind === 'box') {
+                    const sz = 130 * k, by = sy - 80 * k - sz + Math.sin(kart.t * 3 + o.x * 5) * 15 * k;
+                    ctx.fillStyle = C.ink; ligHead(ctx, sx - sz / 2, by, sz, sz, false, 0);
+                    ctx.fillStyle = C.red; ctx.textAlign = 'center'; ctx.font = `${Math.max(1, sz * 0.8)}px ${T.display}`;
+                    ctx.fillText('?', sx, by + sz * 0.78);
+                } else if (o.kind === 'flat') { ctx.fillStyle = C.red; ctx.strokeStyle = C.red; printFlat(ctx, sx - 20 * k, sy - 10 * k, k * 5); }
+                else if (o.kind === 'sharp') { ctx.fillStyle = C.red; ctx.strokeStyle = C.red; ctx.save(); ctx.translate(sx, sy - 90 * k); ctx.rotate(o.spin); printSharp(ctx, -8 * k * 4.5, 0, k * 4.5); ctx.restore(); }
+                else if (o.kind === 'kart') {
+                    kartKart(o.r, sx, sy, k / 0.4);
+                    if (!o.r.me && k / 0.4 > 0.45) { ctx.fillStyle = C.soft; ctx.textAlign = 'center'; ctx.font = font(11 * Math.min(1.2, k / 0.4 + 0.3), 500, true); ctx.fillText(o.r.name, sx, sy - 100 * k / 0.4); }
+                }
+                if (clipped) ctx.restore();
+            }
+        }
+        ctx.restore();
+        kartHud();
+    }
+
+    function kartHud() {
+        const p = kart.p, order = kartOrder(), place = order.indexOf(p) + 1;
+        if (gameState === 'SPLASH') { kartSplash(); return; }
+        ctx.textAlign = 'left';
+        ctx.fillStyle = C.mark; ctx.font = font(13, 700, false, 'sc'); spacing(3); ctx.fillText('LOCUS', 26, 42); spacing(0);
+        ctx.fillStyle = C.red; ctx.font = font(40, 800, false, 'display'); ctx.fillText(ROMAN[place], 24, 84);
+        const pw = ctx.measureText(ROMAN[place]).width;
+        ctx.fillStyle = C.ink; ctx.font = font(18, 500, false, 'display'); ctx.fillText('/ VI', 32 + pw, 84);
+        ctx.font = font(15, 500, true); ctx.fillText(`Circuitus ${ROMAN[Math.max(1, Math.min(KART.LAPS, p.lap))]} / ${ROMAN[KART.LAPS]}`, 26, 108);
+
+        // item slot
+        const bx = W / 2 - 25, by = 18;
+        ctx.fillStyle = C.ink; ligHead(ctx, bx, by, 50, 50, false, 0);
+        if (p.roll > 0) kartItemGlyph(['allabreve', 'flat', 'sharp', 'tempus', 'ink'][Math.floor(kart.frame / 5) % 5], W / 2, by + 25, 1);
+        else if (p.item) kartItemGlyph(p.item, W / 2, by + 25, 1);
+
+        ctx.textAlign = 'right'; ctx.fillStyle = C.ink; ctx.font = font(26, 700, false, 'display');
+        ctx.fillText(kartTime(kart.t), W - 24, 52);
+        let y = 60;
+        if (kart.best) { ctx.fillStyle = C.soft; ctx.font = font(13, 500, true); ctx.fillText('Optimum ' + kartTime(kart.best), W - 24, y + 14); y += 22; }
+        if (kart.tempus > 0) y = drawStatusPill('Tempus perfectum', C.ink, y);
+        if (p.star > 0) y = drawStatusPill('Color', C.red, y);
+        if (p.boost > 0) y = drawStatusPill('Alla breve', C.blue, y);
+
+        ctx.textAlign = 'center';
+        if (kart.count > 0 && kart.count <= 3) {
+            ctx.fillStyle = C.red; ctx.font = font(84, 800, false, 'display');
+            ctx.fillText(ROMAN[Math.ceil(kart.count)], W / 2, 190);
+        } else if (kart.count <= 0 && kart.t < 0.9 && !kart.done) {
+            ctx.fillStyle = C.ink; ctx.font = font(56, 800, false, 'display'); ctx.fillText('Incipite!', W / 2, 180);
+        }
+        if (kart.count > 0) { ctx.fillStyle = C.soft; ctx.font = font(13, 500, true); ctx.fillText(isTouchDevice ? 'Hold the middle as I falls for a fast start' : 'Hold ↑ as I falls for a fast start', W / 2, 220); }
+        if (kart.banner > 0) { ctx.fillStyle = C.red; ctx.font = font(30, 700, true, 'display'); ctx.fillText('Circuitus ultimus', W / 2, 150); }
+        if (kart.done && gameState !== 'WIN') { ctx.fillStyle = C.red; ctx.font = font(60, 800, false, 'display'); ctx.fillText(place === 1 ? 'Victoria!' : 'Finis', W / 2, 180); }
+        if (gameState === 'WIN') kartResults(order);
+    }
+
+    function kartSplash() {
+        veil(0.95);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = C.mark; ctx.font = font(13, 700, false, 'sc'); spacing(3); ctx.fillText('CURSUS', W / 2 + 1.5, 92); spacing(0);
+        ctx.fillStyle = C.ink; ctx.font = font(42, 800, false, 'display'); ctx.fillText('Circus Maximus', W / 2, 142);
+        ctx.fillStyle = C.line; ctx.fillRect(W / 2 - 24, 166, 48, 2);
+        ctx.fillStyle = C.inkSoft; ctx.font = font(17, 400, true);
+        if (isTouchDevice) { ctx.fillText('Left edge and left of middle steer. Hold the right side to hop and drift.', W / 2, 206); ctx.fillText('The round button throws your item.', W / 2, 230); }
+        else { ctx.fillText('← → steer   ·   ↑ hop and drift   ·   ↓ brake   ·   Space item', W / 2, 206); ctx.fillText('Hold a drift through a bend, then let go for a burst of speed.', W / 2, 230); }
+        ctx.fillStyle = C.soft; ctx.font = font(13, 500); ctx.fillText('Three circuits against five rivals', W / 2, 258);
+        ctx.fillStyle = C.mark; ctx.font = font(14, 600); ctx.fillText('Press any key or tap to continue', W / 2, H - 40);
+    }
+
+    function kartResults(order) {
+        veil(0.93);
+        ctx.textAlign = 'center';
+        const place = order.indexOf(kart.p) + 1;
+        ctx.fillStyle = C.mark; ctx.font = font(13, 700, false, 'sc'); spacing(3); ctx.fillText('CURSUS', W / 2 + 1.5, 62); spacing(0);
+        ctx.fillStyle = C.ink; ctx.font = font(40, 800, false, 'display'); ctx.fillText(place === 1 ? 'Victoria!' : `Locus ${ROMAN[place]}`, W / 2, 106);
+        order.forEach((r, i) => {
+            const y = 146 + i * 28;
+            ctx.fillStyle = r.me ? C.red : C.ink;
+            ctx.font = font(18, r.me ? 700 : 500, false, 'display');
+            ctx.textAlign = 'right'; ctx.fillText(ROMAN[i + 1], 300, y);
+            ctx.textAlign = 'left'; ctx.fillText(r.name, 324, y);
+            ctx.textAlign = 'right'; ctx.font = font(16, 500); ctx.fillText(kartTime(r.finish), 520, y);
+        });
+        ctx.textAlign = 'center';
+        if (kart.best) { ctx.fillStyle = kart.newBest ? C.red : C.soft; ctx.font = font(14, 500, true); ctx.fillText((kart.newBest ? 'New optimum ' : 'Optimum ') + kartTime(kart.best), W / 2, 330); }
+        ctx.fillStyle = C.mark; ctx.font = font(14, 600); ctx.fillText('Press any key or tap to continue', W / 2, H - 30);
     }
 
     function loop(now) { 
