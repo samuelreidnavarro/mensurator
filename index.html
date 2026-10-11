@@ -285,7 +285,6 @@
         <div class="slider-container">
             <label for="themeSelect">Theme</label>
             <select id="themeSelect" onchange="applyTheme(this.value)">
-                <option value="modern">Modern</option>
                 <option value="petrucci">Petrucci</option>
                 <option value="attaingnant">Attaingnant</option>
                 <option value="rubrica">Red &amp; Black</option>
@@ -569,7 +568,6 @@ let devInvincible = false;
 
     // Each theme recolours the game and picks its type; print themes also get a paper-and-ink pass (see fx below)
     const THEMES = {
-        modern: { name: 'Modern', colors: {}, ui: SANS, display: SANS, sc: SANS, scale: 1, weights: true, italic: true, pageBg: '#fbf7ef' },
         petrucci: {
             name: 'Petrucci', ui: FELL, display: FELL_BIG, sc: FELL_SC, scale: 1.14, weights: false, italic: true, print: true, initial: 'factotum', pageBg: '#efe6d3',
             colors: { paper: '#ecdfc2', bg: '#ecdfc2', band: '#e3d4b3', ink: '#231a13', inkSoft: '#3b2d20', soft: '#5f4e3b', line: '#bfa77f', staff: '#231a13', mark: '#231a13', red: '#9e3424', redHot: '#c0402a', blue: '#2d4f86', gold: '#8c6a1e', silver: '#5f4e3b', bronze: '#9e3424' },
@@ -591,8 +589,8 @@ let devInvincible = false;
             post: { mode: 1, paper: [239, 227, 199], grain: 0.3, density: 0.32, foxing: 0.04, vellum: true }
         }
     };
-    const THEME_ORDER = ['modern', 'petrucci', 'attaingnant', 'rubrica', 'manuscript'];
-    let themeKey = 'modern', T = THEMES.modern;
+    const THEME_ORDER = ['petrucci', 'attaingnant', 'rubrica', 'manuscript'];
+    let themeKey = 'rubrica', T = THEMES.rubrica;
 
     function font(size, weight = 400, italic = false, role = 'ui') {
         const fam = role === 'display' ? T.display : role === 'sc' ? T.sc : T.ui;
@@ -630,7 +628,7 @@ let devInvincible = false;
     let menuArt = null; // cached decorations for the print title pages
 
     function applyTheme(key) {
-        if (!THEMES[key]) key = 'modern';
+        if (!THEMES[key]) key = 'rubrica';
         themeKey = key; T = THEMES[key];
         Object.assign(C, MODERN_COLORS, T.colors);
         MENU_BTNS = T.print ? PRINT_MENU : MODERN_MENU;
@@ -699,32 +697,58 @@ let devInvincible = false;
             }
         }
     }
+    // mensural F clef: a square head with its tail on the F line, two lozenges straddling it, all on one stem
     function printFClef(c, x, y) {
         if (T.hand) {
-            nib(c, wob(x, y - 26, x, y + 26, 0.6), 2.8); lozenge(c, x + 11, y - 7, 6, 7, true); lozenge(c, x + 11, y + 7, 6, 7, true);
-            voidRect(c, x + 22, y - 8, 12, 16, 3);
+            nib(c, wob(x, y - 24, x, y + 24, 0.6), 2.8); lozenge(c, x + 10, y - 8, 5.5, 7, true); lozenge(c, x + 10, y + 8, 5.5, 7, true);
+            voidRect(c, x + 20, y - 9, 13, 18, 3.4); nib(c, wob(x + 32, y, x + 32.4, y + 30, 0.4), 2.6);
         } else {
-            c.fillRect(x, y - 30, 3, 60); lozenge(c, x + 12, y - 7, 7, 7, true); lozenge(c, x + 12, y + 7, 7, 7, true);
-            c.fillRect(x + 22, y - 10, 13, 20); c.fillRect(x + 33, y - 10, 2.6, 30);
+            c.fillRect(x, y - 26, 2.6, 52); lozenge(c, x + 11, y - 8, 6, 7.5, true); lozenge(c, x + 11, y + 8, 6, 7.5, true);
+            c.fillRect(x + 21, y - 9, 13, 18); c.fillRect(x + 31.4, y - 9, 2.6, 38);
         }
     }
-    function printMensuration(c, x, y) {
-        if (T.hand) nib(c, [[x + 8, y - 11], [x, y - 10], [x - 6, y], [x, y + 10], [x + 8, y + 11]], 4);
-        else { c.lineWidth = 3; c.beginPath(); c.arc(x, y, 13, Math.PI * 0.28, Math.PI * 1.72); c.stroke(); }
+    // mensuration signs: O / C for perfect and imperfect tempus, a dot for major prolation, a stroke for diminution
+    function printMensuration(c, x, y, sign = 'O', r = 12) {
+        const closed = sign[0] === 'O', dot = sign.includes('.'), cut = sign.includes('|');
+        if (T.hand) {
+            // walk the circle anticlockwise from the right so the C opens to the right
+            const p2 = []; for (let i = 0; i <= 16; i++) { const a = (closed ? -0.1 : 0.32) + ((closed ? Math.PI * 2 + 0.25 : Math.PI * 2 - 0.64)) * i / 16; p2.push([x + Math.cos(a) * r * 0.9, y - Math.sin(a) * r]); }
+            nib(c, p2, 3.6);
+            if (cut) nib(c, wob(x, y - r - 7, x, y + r + 7, 0.4), 2.6);
+        } else {
+            c.lineWidth = r / 4.4; c.beginPath();
+            if (closed) c.ellipse(x, y, r * 0.9, r, 0, 0, Math.PI * 2); else c.ellipse(x, y, r * 0.9, r, 0, Math.PI * 0.27, Math.PI * 1.73, false);
+            c.stroke();
+            if (cut) c.fillRect(x - 1.2, y - r - 7, 2.4, 2 * r + 14);
+        }
+        if (dot) { c.beginPath(); c.arc(x + (cut ? 4.5 : 0), y, r / 5, 0, Math.PI * 2); c.fill(); }
     }
+    // the signature for each Mensura setting, drawn after the clef (modus is shown by perfect longa rests spanning three spaces)
+    const MENSURA_SIGNS = ['O', 'O.', 'O', 'C.', 'C'];
+    function printSignature(c, x, mid, gap) {
+        const k = difficultyIndex;
+        if (k === 0) { printRest(c, x - 14, mid - gap, gap * 3); printRest(c, x - 4, mid - gap, gap * 3); printMensuration(c, x + 20, mid, 'O', gap * 0.42); }
+        else printMensuration(c, x, mid, MENSURA_SIGNS[k], gap * 0.42);
+    }
+    // rests: a thick stroke whose length and place on the staff give its value
+    function printRest(c, x, y, h, w = 6) {
+        if (T.hand) { const d = hw(x, y) * 0.4; c.beginPath(); c.moveTo(x - w / 2 + d, y); c.lineTo(x + w / 2 + d, y + 1); c.lineTo(x + w / 2, y + h); c.lineTo(x - w / 2, y + h - 1); c.closePath(); c.fill(); }
+        else { c.fillRect(x - w / 2, y, w, h); c.fillRect(x - w / 2 - 1, y, w + 2, 1.4); c.fillRect(x - w / 2 - 1, y + h - 1.4, w + 2, 1.4); }
+    }
+    // b rotundum: a tall stem with a pointed bowl
     function printFlat(c, x, y, s = 1) {
         c.save(); c.translate(x, y); c.scale(s, s);
-        if (T.hand) { nib(c, wob(0, -30, 0, 4, 0.4), 2.4); nib(c, [[0, -6], [9, -11], [12, -5], [6, 1], [0, 4]], 3); }
-        else { c.fillRect(0, -30, 2.6, 34); c.lineWidth = 2.6; c.beginPath(); c.moveTo(1, -6); c.quadraticCurveTo(15, -14, 10, -2); c.quadraticCurveTo(7, 3, 1, 4); c.stroke(); }
+        if (T.hand) nib(c, wob(0, -30, 0, 4, 0.4), 2.8); else c.fillRect(-1.3, -30, 2.6, 34);
+        {
+            c.beginPath(); c.moveTo(0, -6); c.bezierCurveTo(6, -14, 15, -11, 11, -3); c.bezierCurveTo(9, 1, 4, 3, 0, 5); c.lineTo(0, 1.5); c.bezierCurveTo(4, 0, 7, -2, 8, -4.5); c.bezierCurveTo(9, -9, 4, -9, 0, -3.5); c.closePath(); c.fill();
+        }
         c.restore();
     }
+    // the diesis as printed: a lattice of four strokes set on the diagonal
     function printSharp(c, x, y, s = 1) {
-        c.save(); c.translate(x, y); c.scale(s, s);
-        if (T.hand) { nib(c, [[4, -18], [2, 18]], 2.2); nib(c, [[13, -18], [11, 18]], 2.2); nib(c, [[-4, -4], [20, -9]], 4); nib(c, [[-4, 7], [20, 2]], 4); }
-        else {
-            c.lineWidth = 2.2; c.beginPath(); for (let i = 0; i < 2; i++) { c.moveTo(4 + i * 9, -18); c.lineTo(2 + i * 9, 18); } c.stroke();
-            c.lineWidth = 3.4; c.beginPath(); for (let i = 0; i < 2; i++) { c.moveTo(-4, -4 + i * 11); c.lineTo(20, -9 + i * 11); } c.stroke();
-        }
+        c.save(); c.translate(x + 8, y); c.scale(s, s); c.rotate(-0.62);
+        if (T.hand) { nib(c, [[-4, -15], [-4, 15]], 2.4); nib(c, [[4, -15], [4, 15]], 2.4); nib(c, [[-15, -4], [15, -4]], 3.4); nib(c, [[-15, 4], [15, 4]], 3.4); }
+        else { c.fillRect(-5.2, -15, 2.4, 30); c.fillRect(2.8, -15, 2.4, 30); c.fillRect(-15, -5.5, 30, 3); c.fillRect(-15, 2.5, 30, 3); }
         c.restore();
     }
     function printFermata(c, x, y) {
@@ -1986,6 +2010,7 @@ let devInvincible = false;
             } 
             if (player.x > cameraX + W - player.width) player.x = cameraX + W - player.width;
         } else if (!boss.active) { if (player.x < 0) player.x = 0; cameraX = player.x - W / 3; if (cameraX < 0) cameraX = 0; if (cameraX > currentLevelData.length - W) cameraX = currentLevelData.length - W; }
+        else if (player.x > cameraX + W - player.width) player.x = cameraX + W - player.width; // keep the boss fight on screen
 
         let gravity = devPhysics.gravity * speedMult; 
         if (keys.up && player.vy < 0) gravity = devPhysics.gravity * 0.625 * speedMult;
@@ -2016,7 +2041,10 @@ let devInvincible = false;
                     }
                 }
             } else { 
-                if (!plat.falling && isColliding) { if (player.vy > 0 && player.y + player.height - player.vy <= plat.y + 15) { player.y = plat.y - player.height; player.vy = 0; player.grounded = true; player.jumps = 0; plat.steppedOn = true; } }
+                // the lower note of a rising ligature sits a step below the higher one
+                const top = (plat.type === 'rising' && player.x + player.width / 2 < plat.x + plat.w / 2) ? plat.y + 15 : plat.y;
+                if (top !== plat.y) isColliding = checkCollision(player, { x: plat.x, y: top, width: plat.w, height: plat.h });
+                if (!plat.falling && isColliding) { if (player.vy > 0 && player.y + player.height - player.vy <= top + 15) { player.y = top - player.height; player.vy = 0; player.grounded = true; player.jumps = 0; plat.steppedOn = true; } }
             }
             if (plat.steppedOn && !plat.falling && plat.type !== 'ground') { plat.shakeTimer += timeMod; if (plat.shakeTimer > 30) plat.falling = true; } if (plat.falling) { plat.vy = (plat.vy || 0) + 0.5 * timeMod; plat.y += plat.vy; }
         });
@@ -2248,28 +2276,55 @@ let devInvincible = false;
         if (cp.active) { ctx.textAlign = 'left'; ctx.font = font(12, 600, false, 'sc'); ctx.fillText(cp.label, cp.x - 20, 180); }
     }
 
+    // Platforms are ligatures in white notation: void square heads joined side by side, oblique for the slopes,
+    // with the stems that tell their values. A ligature about to fall is blackened (coloration) as a warning.
+    function ligHead(c, x, y, w, h, filled, k) {
+        if (T.segments) y += (hashf(k * 5.3 + x) - 0.5) * 1.2; // each head its own sort
+        if (filled) { c.fillRect(x, y, w, h); return; }
+        if (T.hand) { voidRect(c, x + 1.5, y + 1.5, w - 3, h - 3, 4.6); return; }
+        const t = 4.2, v = 2.4;
+        c.fillRect(x, y, w, t); c.fillRect(x, y + h - t, w, t); c.fillRect(x, y, v, h); c.fillRect(x + w - v, y, v, h);
+    }
+    function ligStem(c, x, y0, y1) {
+        if (T.hand) nib(c, wob(x, y0, x + 0.3, y1, 0.4, 6), 3);
+        else c.fillRect(x - 1.25, Math.min(y0, y1), 2.5, Math.abs(y1 - y0));
+    }
+    function ligOblique(c, x, y0, w, y1, h, filled) {
+        // a parallelogram with upright ends, as the obliqua is cut
+        const band = (dy, t) => { c.beginPath(); c.moveTo(x, y0 + dy); c.lineTo(x + w, y1 + dy); c.lineTo(x + w, y1 + dy + t); c.lineTo(x, y0 + dy + t); c.closePath(); c.fill(); };
+        if (filled) { band(0, h); return; }
+        if (!T.hand) { band(0, 4.2); band(h - 4.2, 4.2); c.fillRect(x, y0, 2.4, h); c.fillRect(x + w - 2.4, y1, 2.4, h); return; }
+        nib(c, [[x + 1.5, y0 + 1.5], [x + w - 1.5, y1 + 1.5], [x + w - 1.5, y1 + h - 1.5], [x + 1.5, y0 + h - 1.5], [x + 1.5, y0 + 1.5]], 4.6);
+    }
     function drawLigature(ctx, plat) {
-        if (plat.type === 'ground') return; ctx.fillStyle = C.ink; let drawY = plat.y + (plat.shakeTimer > 0 && plat.shakeTimer <= 30 ? Math.sin(plat.shakeTimer * 2) * 2 : 0);
-        if (plat.shakeTimer > 0 && plat.shakeTimer <= 30 && !T.mono) ctx.fillStyle = C.inkSoft;
-        const r = T.print ? 0 : 3;
-        if (T.white) {
-            // void ligatures, outlined with the pen
-            const tail = (x, y) => nib(ctx, wob(x, y, x, y + 35, 0.4), 3);
-            if (plat.type === 'ice') { nib(ctx, [[plat.x, drawY], [plat.x + plat.w, drawY - 20], [plat.x + plat.w, drawY + plat.h - 20], [plat.x, drawY + plat.h], [plat.x, drawY]], 5); tail(plat.x + plat.w - 1.5, drawY - 20); }
-            else if (plat.type === 'descend') { nib(ctx, [[plat.x, drawY - 20], [plat.x + plat.w, drawY], [plat.x + plat.w, drawY + plat.h], [plat.x, drawY + plat.h - 20], [plat.x, drawY - 20]], 5); tail(plat.x + plat.w - 1.5, drawY); }
-            else if (plat.type === 'rising') { voidRect(ctx, plat.x, drawY + 15, plat.w / 2, plat.h, 5); voidRect(ctx, plat.x + plat.w / 2, drawY, plat.w / 2, plat.h, 5); tail(plat.x + plat.w - 1.5, drawY); }
-            else { voidRect(ctx, plat.x, drawY, plat.w, plat.h, 5); tail(plat.x + plat.w - 1.5, drawY); }
+        if (plat.type === 'ground') return;
+        const shaking = plat.shakeTimer > 0 && plat.shakeTimer <= 30;
+        const y = plat.y + (shaking ? Math.sin(plat.shakeTimer * 2) * 2 : 0), x = plat.x, w = plat.w, h = plat.h;
+        const filled = shaking || plat.falling;
+        ctx.fillStyle = C.ink; ctx.strokeStyle = C.ink;
+        const seed = hashf(x * 0.013 + 3.1);
+        if (plat.type === 'ice' || plat.type === 'descend') {
+            // obliqua: rising for 'ice', falling for 'descend' (with the stem down on the left that makes its first note a breve)
+            const up = plat.type === 'ice', y0 = up ? y : y - 20, y1 = up ? y - 20 : y;
+            ligOblique(ctx, x, y0, w, y1, h, filled);
+            if (!up) ligStem(ctx, x + 1.2, y0 + h - 2, y0 + h + 22);
             return;
         }
-        if (plat.type === 'ice') {
-            ctx.beginPath(); ctx.moveTo(plat.x, drawY); ctx.lineTo(plat.x + plat.w, drawY - 20); ctx.lineTo(plat.x + plat.w, drawY + plat.h - 20); ctx.lineTo(plat.x, drawY + plat.h); ctx.closePath(); ctx.fill(); ctx.fillRect(plat.x + plat.w - 3, drawY - 20, 3, 35);
-        } else if (plat.type === 'descend') {
-            ctx.beginPath(); ctx.moveTo(plat.x, drawY - 20); ctx.lineTo(plat.x + plat.w, drawY); ctx.lineTo(plat.x + plat.w, drawY + plat.h); ctx.lineTo(plat.x, drawY + plat.h - 20); ctx.closePath(); ctx.fill(); ctx.fillRect(plat.x + plat.w - 3, drawY, 3, 35);
-        } else if (plat.type === 'rising') {
-            pathRoundRect(ctx, plat.x, drawY + 15, plat.w / 2, plat.h, r); ctx.fill(); pathRoundRect(ctx, plat.x + plat.w / 2, drawY, plat.w / 2, plat.h, r); ctx.fill(); ctx.fillRect(plat.x + plat.w / 2 - 1.5, drawY, 3, 15 + plat.h); ctx.fillRect(plat.x + plat.w - 3, drawY, 3, 35);
-        } else {
-            pathRoundRect(ctx, plat.x, drawY, plat.w, plat.h, r); ctx.fill(); ctx.fillRect(plat.x + plat.w - 3, drawY, 3, 35);
+        if (plat.type === 'rising') {
+            // two notes a step apart, the higher joined to the lower by its side
+            const half = w / 2, n = Math.max(1, Math.round(half / 34)), hw = half / n;
+            for (let i = 0; i < n; i++) ligHead(ctx, x + i * hw, y + 15, hw + 0.5, h, filled, i);
+            for (let i = 0; i < n; i++) ligHead(ctx, x + half + i * hw, y, hw + 0.5, h, filled, i + 9);
+            ligStem(ctx, x + half + 1.2, y + h - 2, y + 15 + h);
+            if (seed < 0.5) ligStem(ctx, x + 1.2, y + 15 + h - 2, y + 15 + h + 22);
+            return;
         }
+        const n = Math.max(2, Math.round(w / 34)), hw = w / n;
+        for (let i = 0; i < n; i++) ligHead(ctx, x + i * hw, y, hw + 0.5, h, filled, i);
+        // first note: stem up on the left (cum opposita proprietate) or down (cum proprietate); last: a longa's tail on the right
+        if (seed < 0.4) ligStem(ctx, x + 1.2, y + 2, y - 24);
+        else if (seed < 0.75) ligStem(ctx, x + 1.2, y + h - 2, y + h + 22);
+        if (seed > 0.3) ligStem(ctx, x + w - 1.2, y + h - 2, y + h + 26);
     }
 
     function drawThemeButton() {
@@ -2454,11 +2509,13 @@ let devInvincible = false;
                 }
             }
 
+        if (gameMode !== 'GRADUS') {
+            // F clef on the fourth line, then the sign of the chosen Mensura
+            ctx.fillStyle = C.ink; ctx.strokeStyle = C.ink;
+            printFClef(ctx, 20, 260); printSignature(ctx, 86, 290, 30);
+        }
         if (gameMode === 'CLASSIC') {
             ctx.textAlign = 'left';
-            ctx.fillStyle = C.ink; ctx.strokeStyle = C.ink;
-            if (T.print) { printFClef(ctx, 20, 290); printMensuration(ctx, 80, 290); }
-            else { ctx.font = `70px ${MUSIC}`; ctx.fillText('𝄢', 20, 290); }
             currentLevelData.checkpoints.forEach(cp => drawCheckpoint(ctx, cp));
             if (!boss.active) {
                 ctx.strokeStyle = rgba(C.mark, T.mono ? 0.6 : 0.35);
@@ -2499,7 +2556,8 @@ let devInvincible = false;
             ctx.fillStyle = C.red; ctx.font = font(12, 600, false, 'sc'); ctx.fillText('MI-FA (Diabolus in Musica)', boss.x - 40, boss.y - 30);
             ctx.fillStyle = C.red; ctx.strokeStyle = C.red; ctx.font = `26px ${MUSIC}`;
             boss.projectiles.forEach(bp => {
-                const fl = Math.random() > 0.5;
+                if (bp.fl === undefined) bp.fl = Math.random() > 0.5;
+                const fl = bp.fl;
                 if (T.print) { if (fl) printFlat(ctx, bp.x + 3, bp.y + 16, 0.7); else printSharp(ctx, bp.x + 2, bp.y + 8, 0.7); }
                 else ctx.fillText(fl ? '♭' : '♯', bp.x, bp.y + 20);
             });
@@ -2511,32 +2569,27 @@ let devInvincible = false;
                 let lx = l.x;
                 if (l.state === 'shaking') lx += (Math.random() > 0.5 ? 2 : -2);
                 ctx.fillStyle = (l.state === 'shaking' || l.state === 'falling') ? C.redHot : C.red;
-                if (T.mono) { ctx.lineWidth = 2.4; ctx.strokeStyle = C.ink; ctx.strokeRect(lx + 1.2, l.y + 1.2, 9.6, 57.6); ctx.beginPath(); ctx.moveTo(lx, l.y); ctx.lineTo(lx + 12, l.y + 60); ctx.stroke(); }
-                else { pathRoundRect(ctx, lx, l.y, 12, 60, T.print ? 0 : 3); ctx.fill(); }
+                printRest(ctx, lx + l.w / 2, l.y, l.h, 9); // a longa rest spans two spaces
             }
         });
         currentLevelData.platforms.forEach(plat => drawLigature(ctx, plat));
 
-        ctx.fillStyle = T.print ? C.ink : C.mark; currentLevelData.scoreNotes.forEach(note => { if (note.active) drawDiamond(ctx, note.x + 7, note.y + 7, 8, true); });
+        // score notes: blackened semiminims
+        ctx.fillStyle = C.ink; ctx.strokeStyle = C.ink;
+        currentLevelData.scoreNotes.forEach(note => { if (note.active) { lozenge(ctx, note.x + 7.5, note.y + 9, 6, 8, true); ligStem(ctx, note.x + 7.5, note.y + 4, note.y - 13); } });
 
-        ctx.textAlign = 'left';
-        ctx.fillStyle = C.blue; ctx.font = font(34, 700);
-        currentLevelData.allaBreves.forEach(item => {
-            if (item.active) {
-                ctx.fillText('C', item.x - 5, item.y + 35);
-                pathRoundRect(ctx, item.x - 5, item.y + 3, 3, 40, 1.5); ctx.fill();
-            }
-        });
-
-        ctx.strokeStyle = T.print ? C.ink : C.mark; ctx.lineWidth = 3;
-        currentLevelData.tempusItems.forEach(item => { if (item.active) { ctx.beginPath(); ctx.arc(item.x + 12.5, item.y + 12.5, 10, 0, Math.PI * 2); ctx.stroke(); } });
+        // alla breve: the cut C; tempus perfectum: the circle
+        ctx.fillStyle = C.blue; ctx.strokeStyle = C.blue;
+        currentLevelData.allaBreves.forEach(item => { if (item.active) printMensuration(ctx, item.x + 12.5, item.y + 12.5, 'C|', 13); });
+        ctx.fillStyle = C.ink; ctx.strokeStyle = C.ink;
+        currentLevelData.tempusItems.forEach(item => { if (item.active) printMensuration(ctx, item.x + 12.5, item.y + 12.5, 'O', 13); });
         ctx.fillStyle = C.ink; currentLevelData.inkPots.forEach(pot => { if (pot.active) { ctx.beginPath(); ctx.arc(pot.x + 10, pot.y + 15, 10, 0, Math.PI*2); ctx.fill(); pathRoundRect(ctx, pot.x + 5, pot.y, 10, 10, 2); ctx.fill(); } });
 
         currentLevelData.enemies.forEach(e => {
             if (e.dead) return;
-            ctx.fillStyle = e.aggro ? C.redHot : C.red; ctx.strokeStyle = ctx.fillStyle;
-            if (T.mono) { ctx.lineWidth = 2.4; ctx.strokeRect(e.x + 1.2, e.y + 1.2, e.w - 2.4, e.h - 2.4); ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + e.w, e.y + e.h); ctx.moveTo(e.x + e.w, e.y); ctx.lineTo(e.x, e.y + e.h); ctx.stroke(); if (e.aggro) ctx.fillRect(e.x, e.y, e.w, e.h * 0.35); }
-            else { pathRoundRect(ctx, e.x, e.y, e.w, e.h, T.print ? 0 : 3); ctx.fill(); }
+            // breve rest fills a space, semibreve rest hangs from a line, minim rest stands on one
+            ctx.fillStyle = e.aggro ? C.redHot : C.red;
+            printRest(ctx, e.x + e.w / 2, e.y, e.h, e.aggro ? 8 : 7);
         });
         ctx.fillStyle = C.red; ctx.strokeStyle = C.red; ctx.font = `30px ${MUSIC}`;
         currentLevelData.jumpingFlats.forEach(flat => { if (!flat.dead && flat.state !== 'hidden') { if (T.print) printFlat(ctx, flat.x + 4, flat.y + 22); else ctx.fillText('♭', flat.x, flat.y + 25); } });
@@ -2802,8 +2855,8 @@ let devInvincible = false;
         fx.render();
         requestAnimationFrame(loop); 
     }
-    let savedTheme = 'modern';
-    try { savedTheme = localStorage.getItem('mensuratorTheme') || 'modern'; } catch (e) {}
+    let savedTheme = 'rubrica';
+    try { savedTheme = localStorage.getItem('mensuratorTheme') || 'rubrica'; } catch (e) {}
     applyTheme(savedTheme);
     requestAnimationFrame(loop);
 </script>
