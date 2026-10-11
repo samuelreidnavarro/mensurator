@@ -4,12 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>MENSURATOR</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Noto+Music&display=swap">
     <style>
+        :root {
+            --bg: #fbf7ef;
+            --paper: #fffdf8;
+            --band: #f1e8d8;
+            --ink: #3b3125;
+            --soft: #8a7b66;
+            --line: #e0d4c0;
+            --mark: #9c6b3c;
+            --red: #b5473a;
+            --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            color-scheme: light;
+        }
+        * { box-sizing: border-box; }
         body {
             margin: 0;
             padding: 0;
-            background-color: #1a100a;
-            color: #d4c3a3;
+            background: var(--bg);
+            color: var(--ink);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -17,27 +33,26 @@
             height: 100vh;
             height: 100dvh;
             width: 100vw;
-            font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+            font-family: var(--sans);
             overflow: hidden;
-            touch-action: none; 
+            touch-action: none;
             -webkit-user-select: none;
             user-select: none;
             -webkit-touch-callout: none;
-            background-image: url('data:image/svg+xml;utf8,<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M10,50 Q25,25 50,50 T90,50" fill="none" stroke="%23b8860b" stroke-width="2" opacity="0.3"/><circle cx="50" cy="50" r="3" fill="%23b8860b" opacity="0.4"/></svg>');
+            -webkit-tap-highlight-color: transparent;
         }
-        
+
         #gameWrapper {
             position: relative;
             width: 100%;
-            max-width: 800px;
+            max-width: 960px;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100%;
-            padding: 10px;
-            box-sizing: border-box;
+            padding: 12px;
         }
-        
+
         #canvasContainer {
             position: relative;
             width: 100%;
@@ -46,55 +61,71 @@
             align-items: center;
             aspect-ratio: 2 / 1;
         }
-        
+
         canvas {
             width: 100%;
             height: 100%;
-            background-color: #eeddbb;
-            background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)" opacity="0.15"/></svg>');
-            box-shadow: inset 0 0 40px rgba(92,64,51,0.6), 0 0 40px rgba(0,0,0,1);
-            border: 4px solid #5c4033;
-            border-radius: 8px;
-            transition: filter 0.1s;
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            box-shadow: 0 1px 2px rgba(59, 49, 37, 0.05), 0 10px 30px rgba(59, 49, 37, 0.07);
+            transition: filter 0.15s;
             display: block;
             touch-action: none;
             -webkit-user-select: none;
             user-select: none;
         }
-        
-        .bullet-time { filter: sepia(0.6) brightness(1.1) contrast(1.2); }
-        .alla-breve { filter: saturate(1.5) hue-rotate(-15deg); }
-        
+
+        .bullet-time { filter: grayscale(0.85) contrast(1.05); }
+        .alla-breve { filter: saturate(1.6) hue-rotate(-12deg); }
+
         .html-btn {
-            background: rgba(184, 134, 11, 0.2);
-            color: #b8860b;
-            border: 2px solid #b8860b;
-            padding: 8px 12px;
-            font-family: inherit; font-size: 14px; font-weight: bold;
-            border-radius: 10px; cursor: pointer; backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            width: 34px; height: 34px; padding: 0;
+            background: rgba(255, 253, 248, 0.85);
+            color: var(--ink);
+            border: 1px solid var(--line);
+            font-family: inherit; font-size: 16px; font-weight: 600;
+            border-radius: 999px; cursor: pointer;
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
         }
-        .html-btn:active { background: rgba(184, 134, 11, 0.6); color: #fff; }
-        #fsBtn { position: absolute; top: 10px; left: 10px; z-index: 20; }
-        
+        .html-btn:hover { border-color: var(--mark); }
+        .html-btn:active { background: var(--band); }
+        #fsBtn { position: absolute; top: 12px; left: 12px; z-index: 20; }
+
         /* Draggable Shoot Button */
         #tShootDraggable {
             position: absolute;
             right: 15%;
             top: 35%;
-            width: 65px; height: 65px;
+            width: 64px; height: 64px;
             border-radius: 50%;
-            background: rgba(26, 16, 10, 0.15); 
-            border: 2px solid rgba(184, 134, 11, 0.3);
-            color: rgba(238, 221, 187, 0.6);
-            font-size: 28px; font-weight: bold;
+            background: rgba(255, 253, 248, 0.55);
+            border: 1.5px solid rgba(156, 107, 60, 0.45);
+            color: var(--mark);
+            font-size: 22px; font-weight: 700;
             display: none; justify-content: center; align-items: center;
             user-select: none; -webkit-user-select: none;
-            backdrop-filter: blur(2px);
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            box-shadow: 0 4px 14px rgba(59, 49, 37, 0.08);
             z-index: 35;
         }
-        #tShootDraggable:active { background: rgba(184, 134, 11, 0.5); color: #fff; }
-        
-        #tPause { position: fixed; top: 10px; right: 10px; width: 45px; height: 45px; font-size: 16px; border-radius: 50%; background: rgba(26,16,10,0.3); border: 2px solid rgba(184,134,11,0.3); color: #d4c3a3; display: none; justify-content:center; align-items:center; z-index: 35; }
+        #tShootDraggable:active { background: var(--mark); color: var(--paper); }
+
+        #tPause {
+            position: fixed; top: 10px; right: 10px; width: 44px; height: 44px;
+            font-size: 13px; font-weight: 800; letter-spacing: 1px; border-radius: 50%;
+            background: rgba(255, 253, 248, 0.85); border: 1px solid var(--line); color: var(--ink);
+            display: none; justify-content: center; align-items: center; z-index: 35;
+            box-shadow: 0 4px 14px rgba(59, 49, 37, 0.08);
+        }
+
+        #touchZonesOverlay .zone {
+            position: absolute; top: 0; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(156, 107, 60, 0.45); font-size: 14px; font-weight: 600; letter-spacing: 2px;
+        }
+        #touchZonesOverlay .zone + .zone { border-left: 1px dashed rgba(156, 107, 60, 0.25); }
 
         @media (orientation: portrait) {
             body { justify-content: flex-start; }
@@ -107,49 +138,102 @@
             bottom: 12px;
             left: 12px;
             z-index: 25;
-            padding: 6px 10px;
+            padding: 5px 10px;
             font-family: inherit;
-            font-size: 12px;
-            font-weight: bold;
-            color: #b8860b;
-            background: rgba(26, 16, 10, 0.85);
-            border: 2px solid rgba(184, 134, 11, 0.5);
-            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--soft);
+            background: transparent;
+            border: 1px solid var(--line);
+            border-radius: 999px;
             cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
         }
-        #titleDevBtn:active { background: rgba(184, 134, 11, 0.35); color: #f4ecd8; }
-        .dev-stage-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 420px; margin: 16px auto; }
-        .dev-stage-btn { flex: 0 0 auto; min-width: 72px; padding: 8px 6px; font-family: inherit; font-size: 14px; font-weight: bold; border-radius: 12px; border: 2px solid #b8860b; background: rgba(184, 134, 11, 0.2); color: #f4ecd8; cursor: pointer; }
-        .dev-stage-btn:active { background: #b8860b; color: #1a100a; }
-        .dev-boss-btn { margin-top: 8px; background: rgba(139, 0, 0, 0.35); border-color: #8b0000; color: #f4ecd8; }
+        #titleDevBtn:hover { color: var(--ink); border-color: var(--mark); }
 
-        /* Unified Pause/Options Menu */
-        .overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 30; justify-content: center; align-items: center; flex-direction: column; }
-        .menu-box { background: rgba(26, 16, 10, 0.95); padding: 30px 40px; border: 4px solid #b8860b; border-radius: 16px; text-align: center; pointer-events: auto; max-width: 90%; }
-        .menu-box h2 { margin-top: 0; color: #f4ecd8; font-size: 32px; }
-        .slider-container { margin: 15px 0; font-size: 14px; color: #d4c3a3; }
-        .slider-container label { display: block; margin-bottom: 5px; }
-        .slider-value { display: inline-block; min-width: 60px; text-align: right; color: #b8860b; font-weight: bold; }
-        .slider-container input { vertical-align: middle; cursor: pointer; width: 100%; margin-top: 8px; }
-        .menu-btn { background: #b8860b; color: #1a100a; border: none; padding: 10px 20px; font-family: inherit; font-size: 18px; font-weight: bold; border-radius: 12px; cursor: pointer; margin: 10px 5px; }
-        .menu-btn:active { background: #d4c3a3; }
+        /* Overlays and panels */
+        .overlay {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(251, 247, 239, 0.72);
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+            z-index: 30; justify-content: center; align-items: center; flex-direction: column;
+        }
+        .menu-box {
+            background: var(--paper); color: var(--ink);
+            padding: 28px 32px; border: 1px solid var(--line); border-radius: 18px;
+            box-shadow: 0 20px 50px rgba(59, 49, 37, 0.14);
+            text-align: center; pointer-events: auto; max-width: 92%; width: 440px;
+        }
+        .menu-box h2 { margin: 0 0 18px; color: var(--ink); font-size: 22px; font-weight: 800; letter-spacing: 3px; }
+        .menu-box p { color: var(--soft); font-size: 14px; margin: 0 0 8px; }
+        .menu-box hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+        .slider-container { margin: 14px 0; font-size: 13px; font-weight: 500; color: var(--soft); text-align: left; }
+        .slider-container label { display: block; }
+        .slider-value { float: right; color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+        .speed-name { display: block; margin-top: 4px; color: var(--ink); font-weight: 600; font-size: 14px; }
+        .slider-container input[type=range] { width: 100%; margin-top: 10px; cursor: pointer; accent-color: var(--mark); }
+        .menu-btn {
+            background: var(--ink); color: var(--paper); border: 1px solid var(--ink);
+            padding: 11px 20px; font-family: inherit; font-size: 15px; font-weight: 600;
+            border-radius: 999px; cursor: pointer; margin: 6px 4px;
+        }
+        .menu-btn:hover { background: #2a231a; }
+        .menu-btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+        .menu-btn.ghost:hover { border-color: var(--mark); }
+        .menu-btn.danger { background: transparent; color: var(--red); border-color: rgba(181, 71, 58, 0.4); }
+        .menu-btn.danger:hover { border-color: var(--red); }
+        .menu-btn.block { display: block; width: 100%; margin: 0 0 10px; }
+        .dev-section-label { color: var(--mark); font-weight: 700; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; text-align: center; }
+        .dev-stage-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0; }
+        .dev-stage-btn {
+            padding: 9px 4px; font-family: inherit; font-size: 13px; font-weight: 600;
+            border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer;
+        }
+        .dev-stage-btn:hover { border-color: var(--mark); }
+        .dev-warp {
+            display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;
+            margin: 12px 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg);
+        }
+        .dev-warp label { color: var(--ink); font-weight: 600; font-size: 13px; }
+        .dev-warp input {
+            width: 64px; padding: 6px; font-family: inherit; font-size: 15px; font-weight: 600; text-align: center;
+            color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 8px;
+        }
+        .dev-check { color: var(--red); font-weight: 700; cursor: pointer; text-align: center; }
+        .dev-check input { width: auto; margin-right: 8px; accent-color: var(--red); }
+
+        #mobileNameInputOverlay {
+            position: fixed; inset: 0; z-index: 50;
+            background: rgba(251, 247, 239, 0.96);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-family: var(--sans); color: var(--ink); text-align: center; padding: 16px;
+        }
+        #mobileNameInputOverlay .t { font-size: 28px; font-weight: 800; letter-spacing: 3px; margin-bottom: 14px; }
+        #mobileNameInputOverlay .s { font-size: 15px; color: var(--soft); margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+        #mobileNameInputOverlay .p { font-size: 14px; font-weight: 600; color: var(--mark); margin: 16px 0 10px; }
+        #mobileNameInput {
+            font-family: inherit; font-size: 17px; font-weight: 600; text-align: center;
+            padding: 10px 14px; width: 220px; margin-bottom: 18px;
+            color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 12px; outline: none;
+        }
+        #mobileNameInput:focus { border-color: var(--mark); }
+        #mobileNameInputOverlay .row { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
 
 <div id="gameWrapper">
     <div id="canvasContainer">
-        <button id="fsBtn" class="html-btn">⛶</button>
+        <button id="fsBtn" class="html-btn" aria-label="Fullscreen">⛶</button>
         <canvas id="gameCanvas" width="800" height="400"></canvas>
         <div id="tPause">II</div>
     </div>
 </div>
 
 <div id="touchZonesOverlay" style="display:none; pointer-events:none; position:fixed; left:0; top:0; width:100vw; height:0; z-index:4;">
-    <div style="position:absolute; left:0; top:0; width:18%; height:100%; border-right: 1px solid rgba(184,134,11,0.2); display:flex; align-items:center; justify-content:center; color:rgba(184,134,11,0.3); font-size:24px;">◄</div>
-    <div style="position:absolute; left:18%; top:0; width:27%; height:100%; border-right: 1px solid rgba(184,134,11,0.2); display:flex; align-items:center; justify-content:center; color:rgba(184,134,11,0.3); font-size:24px;">►</div>
-    <div style="position:absolute; left:45%; top:0; width:55%; height:100%; display:flex; align-items:center; justify-content:center; color:rgba(184,134,11,0.3); font-size:24px;">▲ JUMP</div>
+    <div class="zone" style="left:0; width:18%;">◀</div>
+    <div class="zone" style="left:18%; width:27%;">▶</div>
+    <div class="zone" style="left:45%; width:55%;">▲ JUMP</div>
 </div>
 
 <div id="tShootDraggable">●</div>
@@ -157,70 +241,65 @@
 <button type="button" id="titleDevBtn" aria-label="Developer mode">DEV</button>
 
 <div id="devOverlay" class="overlay" style="z-index: 40;">
-    <div class="menu-box" style="max-width: 95%;">
+    <div class="menu-box" style="width: 480px; max-height: 92vh; overflow-y: auto;">
         <h2>Modus Formatoris</h2>
-        <p style="color:#d4c3a3; font-size:15px; margin:0 0 8px;">Stadium Classicum (I–VIII) vel pugna cum Diabolo.</p>
+        <p>Stadium Classicum (I–VIII) vel pugna cum Diabolo.</p>
         <div class="dev-stage-grid" id="devStageGrid"></div>
-        <button type="button" class="menu-btn dev-boss-btn" id="devBossBtn">Pugna: MI-FA (Boss)</button>
-        <br>
-        <div style="margin: 15px auto; max-width: 320px; border: 2px solid #b8860b; background: rgba(184, 134, 11, 0.1); padding: 10px; border-radius: 12px;">
-            <label style="color: #f4ecd8; font-weight: bold; display: block; margin-bottom: 8px;">Endless Mode Warp (0-23): </label>
-            <input type="number" id="devEndlessLevelInput" min="0" max="23" value="0" style="width: 60px; background: #1a100a; color: #b8860b; border: 2px solid #b8860b; border-radius: 6px; text-align: center; font-size: 16px; padding: 4px;">
-            <button type="button" class="menu-btn" id="devEndlessJumpBtn" style="padding: 6px 16px; font-size: 16px; margin-left: 10px;">WARP</button>
+        <button type="button" class="menu-btn danger block" id="devBossBtn">Pugna: MI-FA (Boss)</button>
+        <div class="dev-warp">
+            <label for="devEndlessLevelInput">Endless Mode Warp (0-23):</label>
+            <input type="number" id="devEndlessLevelInput" min="0" max="23" value="0">
+            <button type="button" class="menu-btn" id="devEndlessJumpBtn" style="margin: 0; padding: 7px 16px;">WARP</button>
         </div>
-        <br>
-        <button type="button" class="menu-btn" id="devLeaderboardBtn">Test: Nomen in Tabella</button>
-        <br>
-        <button type="button" class="menu-btn" id="devResetLeaderboardBtn" style="background: rgba(220, 53, 69, 0.2); border-color: #dc3545;">Reset Leaderboard</button>
-        <br>
-        <button type="button" class="menu-btn" id="devCloseBtn">Claudere</button>
+        <button type="button" class="menu-btn ghost block" id="devLeaderboardBtn">Test: Nomen in Tabella</button>
+        <button type="button" class="menu-btn danger block" id="devResetLeaderboardBtn">Reset Leaderboard</button>
+        <button type="button" class="menu-btn block" id="devCloseBtn">Claudere</button>
     </div>
 </div>
 
 <div id="pauseOverlay" class="overlay">
-    <div class="menu-box" style="max-width: 500px; max-height: 85vh; overflow-y: auto;">
-        <h2>PAUSATUM</h2>
-        
-                <button class="menu-btn" onclick="togglePause()" style="width: 100%; margin-bottom: 10px;">Resume</button>
-        <button class="menu-btn" onclick="quitToMenu()" style="width: 100%; background: rgba(139, 0, 0, 0.5); margin-bottom: 15px;">Quit to Title</button>
-        
-        <hr style="border-color: rgba(184,134,11,0.3); margin: 15px 0;">
+    <div class="menu-box" style="max-height: 88vh; overflow-y: auto;">
+        <h2>PAUSATUM</h2>
 
-        <div class="slider-container">
-            <label>Mensura (Game Speed): <br><span id="speedLabel" style="font-weight:bold; color:#b8860b;">Tempus perfectum prolatio minor</span><br>
-            <input type="range" id="speedSlider" min="0" max="4" step="1" value="2" oninput="updateSpeedLabel()"></label>
-        </div>
-        <div class="slider-container">
-            <label>Musica Vol: <span class="slider-value" id="musicVolValue">0.8</span><input type="range" id="musicVol" min="0" max="1" step="0.05" value="0.8" oninput="updateSliderValue('musicVolValue', this.value)"></label>
-        </div>
-        <div class="slider-container">
-            <label>Effectus Vol: <span class="slider-value" id="fxVolValue">0.4</span><input type="range" id="fxVol" min="0" max="1" step="0.05" value="0.4" oninput="updateSliderValue('fxVolValue', this.value)"></label>
-        </div>
-        <div id="devPhysicsSection" style="display: none;">
-            <hr style="border-color: rgba(184,134,11,0.3); margin: 15px 0;">
-            <div style="text-align: center; color: #b8860b; font-weight: bold; margin-bottom: 10px; font-size: 14px;">⚙ DEV MODE: Physics Tweaker</div>
-            <div class="slider-container">
-                <label>Gravitas: <span class="slider-value" id="gravityValue">0.6</span><input type="range" id="gravitySlider" min="0.2" max="1.0" step="0.1" value="0.6" oninput="updateSliderValue('gravityValue', this.value)"></label>
-            </div>
-            <div class="slider-container">
-                <label>Saltus Altitudo (Jump Height): <span class="slider-value" id="jumpPowerValue">9</span><input type="range" id="jumpPowerSlider" min="5" max="13" step="1" value="9" oninput="updateSliderValue('jumpPowerValue', this.value)"></label>
-            </div>
-            <div class="slider-container">
-                <label>Celeritas Pedestris (Walk Speed): <span class="slider-value" id="walkSpeedValue">6.5</span><input type="range" id="walkSpeedSlider" min="3" max="10" step="0.5" value="6.5" oninput="updateSliderValue('walkSpeedValue', this.value)"></label>
-            </div>
-            <div class="slider-container">
-                <label>Cursus Velocitas (Sprint Speed): <span class="slider-value" id="sprintSpeedValue">12</span><input type="range" id="sprintSpeedSlider" min="8" max="16" step="1" value="12" oninput="updateSliderValue('sprintSpeedValue', this.value)"></label>
+        <button class="menu-btn block" onclick="togglePause()">Resume</button>
+        <button class="menu-btn ghost block" onclick="quitToMenu()">Quit to Title</button>
+
+        <hr>
+
+        <div class="slider-container">
+            <label>Mensura (Game Speed) <span id="speedLabel" class="speed-name">Tempus perfectum prolatio minor</span>
+            <input type="range" id="speedSlider" min="0" max="4" step="1" value="2" oninput="updateSpeedLabel()"></label>
+        </div>
+        <div class="slider-container">
+            <label>Musica Vol <span class="slider-value" id="musicVolValue">0.8</span><input type="range" id="musicVol" min="0" max="1" step="0.05" value="0.8" oninput="updateSliderValue('musicVolValue', this.value)"></label>
+        </div>
+        <div class="slider-container">
+            <label>Effectus Vol <span class="slider-value" id="fxVolValue">0.4</span><input type="range" id="fxVol" min="0" max="1" step="0.05" value="0.4" oninput="updateSliderValue('fxVolValue', this.value)"></label>
+        </div>
+        <div id="devPhysicsSection" style="display: none;">
+            <hr>
+            <div class="dev-section-label">⚙ DEV MODE: Physics Tweaker</div>
+            <div class="slider-container">
+                <label>Gravitas <span class="slider-value" id="gravityValue">0.6</span><input type="range" id="gravitySlider" min="0.2" max="1.0" step="0.1" value="0.6" oninput="updateSliderValue('gravityValue', this.value)"></label>
             </div>
-            <div class="slider-container" style="text-align: center; margin-top: 15px;">
-                <label style="color: #ff4444; font-weight: bold; cursor: pointer;">
-                    <input type="checkbox" id="devInvincibilityToggle" style="width: auto; margin-right: 8px;">
+            <div class="slider-container">
+                <label>Saltus Altitudo (Jump Height) <span class="slider-value" id="jumpPowerValue">9</span><input type="range" id="jumpPowerSlider" min="5" max="13" step="1" value="9" oninput="updateSliderValue('jumpPowerValue', this.value)"></label>
+            </div>
+            <div class="slider-container">
+                <label>Celeritas Pedestris (Walk Speed) <span class="slider-value" id="walkSpeedValue">6.5</span><input type="range" id="walkSpeedSlider" min="3" max="10" step="0.5" value="6.5" oninput="updateSliderValue('walkSpeedValue', this.value)"></label>
+            </div>
+            <div class="slider-container">
+                <label>Cursus Velocitas (Sprint Speed) <span class="slider-value" id="sprintSpeedValue">12</span><input type="range" id="sprintSpeedSlider" min="8" max="16" step="1" value="12" oninput="updateSliderValue('sprintSpeedValue', this.value)"></label>
+            </div>
+            <div class="slider-container dev-check">
+                <label>
+                    <input type="checkbox" id="devInvincibilityToggle">
                     INVINCIBILITY
                 </label>
             </div>
         </div>
     </div>
 </div>
-
 <script>
     document.getElementById('fsBtn').addEventListener('click', () => {
         let elem = document.documentElement;
@@ -235,6 +314,10 @@
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    // Logical game size is 800x400; the backing store is scaled for sharp rendering on high-density screens
+    const W = 800, H = 400;
+    const DPR = Math.min(window.devicePixelRatio || 1, 3);
+    canvas.width = W * DPR; canvas.height = H * DPR;
     
     const pauseOverlay = document.getElementById('pauseOverlay');
     const touchZonesOverlay = document.getElementById('touchZonesOverlay');
@@ -444,110 +527,111 @@ let devInvincible = false;
         } catch (error) { console.log('Failed to add to Dreamlo:', error); }
     }
 
-    // --- // --- Name Input Screen ---
+    // --- Visual Style ---
+    const C = {
+        bg: '#fbf7ef', paper: '#fffdf8', band: '#f1e8d8', ink: '#3b3125', inkSoft: '#5c4f3e', soft: '#8a7b66',
+        line: '#e0d4c0', staff: '#d8cab2', mark: '#9c6b3c', red: '#b5473a', redHot: '#dc5a43', blue: '#3f6c9c',
+        gold: '#c49a2c', silver: '#9a9a96', bronze: '#b07a4a'
+    };
+    const SANS = '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+    const MUSIC = '"Noto Music", "Segoe UI Symbol", "Apple Symbols", serif';
+    function font(size, weight = 400, italic = false) { return `${italic ? 'italic ' : ''}${weight} ${size}px ${SANS}`; }
+    function spacing(px) { if ('letterSpacing' in ctx) ctx.letterSpacing = px + 'px'; }
+    function inRect(x, y, r) { return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; }
+
+    function pill(x, y, w, h, fill, stroke, r = h / 2) {
+        pathRoundRect(ctx, x, y, w, h, r);
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+    }
+
+    function veil(alpha = 0.94) { ctx.fillStyle = `rgba(251, 247, 239, ${alpha})`; ctx.fillRect(0, 0, W, H); }
+
+    // Title menu layout, shared by drawing and click handling
+    const MENU_BTNS = [
+        { x: 150, y: 160, w: 244, h: 56, label: 'Ars Antiqua (Classic)', primary: true, action: () => { gameMode = 'CLASSIC'; currentLevel = 0; startGame(); } },
+        { x: 406, y: 160, w: 244, h: 56, label: 'Ars Nova (Endless)', action: () => { gameMode = 'ENDLESS'; currentLevel = 0; startGame(); } },
+        { x: 150, y: 228, w: 244, h: 56, label: 'Gradus ad Parnassum', action: () => { gameMode = 'GRADUS'; currentLevel = 0; startGame(); } },
+        { x: 406, y: 228, w: 244, h: 56, label: 'Magistri Mensurarum', action: () => { gameState = 'LEADERBOARD'; loadLeaderboard(); } }
+    ];
+    const INSTALL_BTN = { x: 696, y: 16, w: 88, h: 30 };
+    const LB_SWITCH_BTN = { x: 10, y: 10, w: 160, h: 30 };
+    const LB_CLOSE_BTN = { x: 760, y: 10, w: 30, h: 30 };
+    let menuHover = -1;
+
+    // --- Name Input Screen ---
     function drawNameInput() {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        veil(0.97);
         ctx.textAlign = 'center';
-        
-        ctx.fillStyle = '#f4ecd8'; ctx.font = 'bold 32px "Book Antiqua", serif';
-        ctx.fillText(gameMode === 'ENDLESS' ? 'CANTUS FINITUS' : 'VICTORIA!', canvas.width / 2, 100);
-        
-        ctx.fillStyle = '#d4c3a3'; ctx.font = '20px "Book Antiqua", serif';
-        ctx.fillText('Tempus: ' + Math.floor(levelTime / 60) + ':' + Math.floor(levelTime % 60).toString().padStart(2, '0'), canvas.width / 2, 140);
-        ctx.fillText('Puncta: ' + player.score, canvas.width / 2, 170);
-        if (gameMode === 'ENDLESS') ctx.fillText('Spatium: ' + endlessDistance, canvas.width / 2, 200);
-        
-        ctx.fillStyle = '#b8860b'; ctx.font = '18px "Book Antiqua", serif';
-        ctx.fillText('Inscribe nomen tuum:', canvas.width / 2, 240);
-        
-        ctx.strokeStyle = '#b8860b'; ctx.lineWidth = 2;
-        ctx.strokeRect(canvas.width / 2 - 100, 270, 200, 30);
-        ctx.fillStyle = inputName ? '#d4c3a3' : '#1a100a';
-        ctx.fillRect(canvas.width / 2 - 98, 272, 196, 26);
-        
-        ctx.fillStyle = '#000'; ctx.font = '16px monospace';
-        ctx.textAlign = 'center';
-        const cursor = Math.floor(Date.now() / 500) % 2 ? '_' : '';
-        ctx.fillText(inputName + cursor, canvas.width / 2, 290);
-        
-        ctx.fillStyle = '#b8860b'; ctx.font = 'italic 14px "Book Antiqua", serif';
-        ctx.fillText('Press ENTER to save, ESC to skip', canvas.width / 2, 340);
+
+        ctx.fillStyle = C.ink; ctx.font = font(30, 800); spacing(4);
+        ctx.fillText(gameMode === 'ENDLESS' ? 'CANTUS FINITUS' : 'VICTORIA!', W / 2, 96);
+        spacing(0);
+
+        ctx.fillStyle = C.soft; ctx.font = font(15, 500);
+        let stats = ['Tempus: ' + Math.floor(levelTime / 60) + ':' + Math.floor(levelTime % 60).toString().padStart(2, '0'), 'Puncta: ' + player.score];
+        if (gameMode === 'ENDLESS') stats.push('Spatium: ' + endlessDistance);
+        ctx.fillText(stats.join('   ·   '), W / 2, 132);
+
+        ctx.fillStyle = C.mark; ctx.font = font(14, 600);
+        ctx.fillText('Inscribe nomen tuum:', W / 2, 196);
+
+        pill(W / 2 - 130, 212, 260, 48, C.paper, C.mark, 12);
+        ctx.fillStyle = C.ink; ctx.font = font(20, 600);
+        const cursor = Math.floor(Date.now() / 500) % 2 ? '_' : ' ';
+        ctx.fillText(inputName + cursor, W / 2, 244);
+
+        ctx.fillStyle = C.soft; ctx.font = font(12, 500);
+        ctx.fillText('Press ENTER to save, ESC to skip', W / 2, 300);
     }
 
     // --- Leaderboard Display Screen ---
     function drawLeaderboard() {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw Switch Button
-        const switchBtnW = 160;
-        const switchBtnH = 30;
-        const switchBtnX = 10;
-        const switchBtnY = 10;
-        
-        ctx.fillStyle = 'rgba(184, 134, 11, 0.3)';
-        ctx.fillRect(switchBtnX, switchBtnY, switchBtnW, switchBtnH);
-        ctx.strokeStyle = '#b8860b';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(switchBtnX, switchBtnY, switchBtnW, switchBtnH);
-        
-        ctx.fillStyle = '#d4c3a3';
-        ctx.font = '16px "Book Antiqua", serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(currentLeaderboardMode === 'CLASSIC' ? 'Switch to Endless' : 'Switch to Classic', switchBtnX + switchBtnW / 2, switchBtnY + 21);
+        veil(0.98);
 
-        // Draw close button
-        const closeBtnSize = 30;
-        const closeBtnX = canvas.width - closeBtnSize - 10;
-        const closeBtnY = 10;
-        
-        ctx.fillStyle = 'rgba(184, 134, 11, 0.3)';
-        ctx.fillRect(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize);
-        ctx.strokeStyle = '#b8860b';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize);
-        ctx.strokeStyle = '#d4c3a3';
-        ctx.lineWidth = 2;
+        // Switch Button
+        const sb = LB_SWITCH_BTN;
+        pill(sb.x, sb.y, sb.w, sb.h, C.paper, C.line);
+        ctx.fillStyle = C.ink; ctx.font = font(12, 600); ctx.textAlign = 'center';
+        ctx.fillText(currentLeaderboardMode === 'CLASSIC' ? 'Switch to Endless' : 'Switch to Classic', sb.x + sb.w / 2, sb.y + 19);
+
+        // Close button
+        const cb = LB_CLOSE_BTN;
+        pill(cb.x, cb.y, cb.w, cb.h, C.paper, C.line);
+        ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(closeBtnX + 8, closeBtnY + 8);
-        ctx.lineTo(closeBtnX + closeBtnSize - 8, closeBtnY + closeBtnSize - 8);
-        ctx.moveTo(closeBtnX + closeBtnSize - 8, closeBtnY + 8);
-        ctx.lineTo(closeBtnX + 8, closeBtnY + closeBtnSize - 8);
-        ctx.stroke();
-        
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#f4ecd8';
-        ctx.font = 'bold 32px "Book Antiqua", serif';
-        ctx.fillText('MAGISTRI MENSURATORUM', canvas.width / 2, 60);
-        
-        ctx.fillStyle = '#d4c3a3';
-        ctx.font = '20px "Book Antiqua", serif';
-        ctx.fillText(`Top 10 Champions (${currentLeaderboardMode})`, canvas.width / 2, 100);
-        
-        ctx.textAlign = 'left';
-        ctx.font = '16px "Book Antiqua", serif';
-        let y = 140;
-        
+        ctx.moveTo(cb.x + 10, cb.y + 10); ctx.lineTo(cb.x + cb.w - 10, cb.y + cb.h - 10);
+        ctx.moveTo(cb.x + cb.w - 10, cb.y + 10); ctx.lineTo(cb.x + 10, cb.y + cb.h - 10);
+        ctx.stroke(); ctx.lineCap = 'butt';
+
+        ctx.fillStyle = C.ink; ctx.font = font(24, 800); spacing(3);
+        ctx.fillText('MAGISTRI MENSURATORUM', W / 2, 62);
+        spacing(0);
+        ctx.fillStyle = C.soft; ctx.font = font(13, 500);
+        ctx.fillText(`Top 10 Champions (${currentLeaderboardMode})`, W / 2, 86);
+
+        const left = W / 2 - 170, right = W / 2 + 170;
+        let y = 124;
         if (leaderboard.length === 0) {
-            ctx.fillStyle = '#d4c3a3';
-            ctx.fillText('No champions yet. Be the first!', canvas.width / 2 - 100, y);
+            ctx.fillStyle = C.soft; ctx.font = font(15, 500);
+            ctx.fillText('No champions yet. Be the first!', W / 2, 170);
         } else {
+            const medal = [C.gold, C.silver, C.bronze];
             leaderboard.forEach((entry, i) => {
-                if (i === 0) ctx.fillStyle = '#ffd700';
-                else if (i === 1) ctx.fillStyle = '#c0c0c0';
-                else if (i === 2) ctx.fillStyle = '#cd7f32';
-                else ctx.fillStyle = '#d4c3a3';
-                
-                const rank = (i + 1).toString().padStart(2, '.') + ' ';
-                ctx.fillText(rank + entry.name + ' - ' + entry.score + ' pts', canvas.width / 2 - 150, y);
-                y += 25;
+                if (i > 0) { ctx.fillStyle = C.line; ctx.fillRect(left, y - 16, right - left, 1); }
+                ctx.textAlign = 'left';
+                if (i < 3) { ctx.fillStyle = medal[i]; ctx.beginPath(); ctx.arc(left + 9, y - 5, 9, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = C.paper; ctx.font = font(11, 700); ctx.textAlign = 'center'; ctx.fillText(i + 1, left + 9, y - 1); }
+                else { ctx.fillStyle = C.soft; ctx.font = font(12, 600); ctx.textAlign = 'center'; ctx.fillText(i + 1, left + 9, y - 1); }
+                ctx.textAlign = 'left'; ctx.fillStyle = C.ink; ctx.font = font(15, 600);
+                ctx.fillText(entry.name, left + 30, y);
+                ctx.textAlign = 'right'; ctx.fillStyle = C.inkSoft; ctx.font = font(14, 500);
+                ctx.fillText(entry.score + ' pts', right, y);
+                y += 24;
             });
         }
-        
-        ctx.fillStyle = '#b8860b';
-        ctx.font = 'italic 14px "Book Antiqua", serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Click the ✕ button to return to menu', canvas.width / 2, canvas.height - 40);
+
+        ctx.fillStyle = C.soft; ctx.font = font(12, 500); ctx.textAlign = 'center';
+        ctx.fillText('Click the ✕ button to return to menu', W / 2, H - 24);
     }
 
     const diatonic = [130.81, 146.83, 164.81, 174.61, 196.00, 220.00, 246.94, 261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50];
@@ -1018,60 +1102,15 @@ let devInvincible = false;
         window.virtualKeyboardShown = true;
         const inputOverlay = document.createElement('div');
         inputOverlay.id = 'mobileNameInputOverlay';
-        inputOverlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.9);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 50;
-        `;
-        
         inputOverlay.innerHTML = `
-            <div style="color: #f4ecd8; font-size: 32px; font-family: 'Book Antiqua', serif; margin-bottom: 20px;">VICTORIA!</div>
-            <div style="color: #d4c3a3; font-size: 18px; font-family: 'Book Antiqua', serif; margin-bottom: 10px;">Tempus: ${Math.floor(levelTime / 60)}:${Math.floor(levelTime % 60).toString().padStart(2, '0')}</div>
-            <div style="color: #d4c3a3; font-size: 18px; font-family: 'Book Antiqua', serif; margin-bottom: 20px;">Puncta: ${player.score}</div>
-            <div style="color: #b8860b; font-size: 18px; font-family: 'Book Antiqua', serif; margin-bottom: 10px;">Inscribe nomen tuum:</div>
-            <input type="text" id="mobileNameInput" style="
-                font-size: 16px;
-                padding: 8px;
-                border: 2px solid #b8860b;
-                background: #1a100a;
-                color: #d4c3a3;
-                border-radius: 8px;
-                text-align: center;
-                margin-bottom: 20px;
-                width: 200px;
-                font-family: monospace;
-            " placeholder="Enter name" maxlength="15" value="${inputName}">
-            <div style="display: flex; gap: 10px;">
-                <button id="mobileSaveBtn" style="
-                    background: #b8860b;
-                    color: #1a100a;
-                    border: none;
-                    padding: 10px 20px;
-                    font-family: 'Book Antiqua', serif;
-                    font-size: 16px;
-                    font-weight: bold;
-                    border-radius: 8px;
-                    cursor: pointer;
-                ">SAVE</button>
-                <button id="mobileSkipBtn" style="
-                    background: rgba(139, 0, 0, 0.5);
-                    color: #f4ecd8;
-                    border: none;
-                    padding: 10px 20px;
-                    font-family: 'Book Antiqua', serif;
-                    font-size: 16px;
-                    font-weight: bold;
-                    border-radius: 8px;
-                    cursor: pointer;
-                ">SKIP</button>
+            <div class="t">VICTORIA!</div>
+            <div class="s">Tempus: ${Math.floor(levelTime / 60)}:${Math.floor(levelTime % 60).toString().padStart(2, '0')}</div>
+            <div class="s">Puncta: ${player.score}</div>
+            <div class="p">Inscribe nomen tuum:</div>
+            <input type="text" id="mobileNameInput" placeholder="Enter name" maxlength="15" value="${inputName}">
+            <div class="row">
+                <button id="mobileSaveBtn" class="menu-btn" style="margin:0;">SAVE</button>
+                <button id="mobileSkipBtn" class="menu-btn ghost" style="margin:0;">SKIP</button>
             </div>
         `;
         
@@ -1133,11 +1172,11 @@ let devInvincible = false;
             // Check if close button was touched
             const rect = canvas.getBoundingClientRect();
             const touch = e.touches[0] || e.changedTouches[0];
-            const x = (touch.clientX - rect.left) / (rect.width / canvas.width);
-            const y = (touch.clientY - rect.top) / (rect.height / canvas.height);
+            const x = (touch.clientX - rect.left) / (rect.width / W);
+            const y = (touch.clientY - rect.top) / (rect.height / H);
             
             const closeBtnSize = 30;
-            const closeBtnX = canvas.width - closeBtnSize - 10;
+            const closeBtnX = W - closeBtnSize - 10;
             const closeBtnY = 10;
             
             if (x >= closeBtnX && x <= closeBtnX + closeBtnSize && 
@@ -1221,6 +1260,16 @@ let devInvincible = false;
 
     document.getElementById('tPause').addEventListener('touchstart', (e) => { e.preventDefault(); togglePause(); });
 
+    canvas.addEventListener('pointermove', (e) => {
+        if (gameState !== 'MENU' || e.pointerType === 'touch') { if (menuHover !== -1) { menuHover = -1; canvas.style.cursor = ''; } return; }
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / (rect.width / W);
+        const y = (e.clientY - rect.top) / (rect.height / H);
+        menuHover = MENU_BTNS.findIndex(b => inRect(x, y, b));
+        canvas.style.cursor = (menuHover !== -1 || inRect(x, y, INSTALL_BTN)) ? 'pointer' : '';
+    });
+    canvas.addEventListener('pointerleave', () => { menuHover = -1; canvas.style.cursor = ''; });
+
     canvas.addEventListener('pointerdown', (e) => {
         unlockAudio();
         
@@ -1234,22 +1283,17 @@ let devInvincible = false;
             advanceSplash();
         } else if (gameState === 'MENU') {
             const rect = canvas.getBoundingClientRect(); 
-            const y = (e.clientY - rect.top) / (rect.height / canvas.height);
-            const x = (e.clientX - rect.left) / (rect.width / canvas.width);
+            const y = (e.clientY - rect.top) / (rect.height / H);
+            const x = (e.clientX - rect.left) / (rect.width / W);
             
-            // Check if "Install?" button was clicked
-            if (x > 660 && x < 780 && y > 16 && y < 52) {
+            // Check if "Install" button was clicked
+            if (inRect(x, y, INSTALL_BTN)) {
                 gameState = 'INSTALL_PROMPT';
                 return;
             }
 
-            if (y > 118 && y < 170) { gameMode = 'CLASSIC'; currentLevel = 0; startGame(); }
-            else if (y > 184 && y < 236) { gameMode = 'ENDLESS'; currentLevel = 0; startGame(); }
-            else if (y > 250 && y < 302) { gameMode = 'GRADUS'; currentLevel = 0; startGame(); }
-            else if (y > 316 && y < 368) { 
-                gameState = 'LEADERBOARD'; 
-                loadLeaderboard();
-            }
+            const picked = MENU_BTNS.find(b => inRect(x, y, b));
+            if (picked) picked.action();
         } else if (gameState === 'DEATH_FREEZE' || gameState === 'WIN') {
             if (gameState === 'WIN') {
                 gameState = 'MENU';
@@ -1262,8 +1306,8 @@ let devInvincible = false;
             }
         } else if (gameState === 'LEADERBOARD') {
             const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / (rect.width / canvas.width);
-            const y = (e.clientY - rect.top) / (rect.height / canvas.height);
+            const x = (e.clientX - rect.left) / (rect.width / W);
+            const y = (e.clientY - rect.top) / (rect.height / H);
             
             // Check if Switch Mode button was clicked
             if (x >= 10 && x <= 170 && y >= 10 && y <= 40) {
@@ -1274,7 +1318,7 @@ let devInvincible = false;
 
             // Check if close button was clicked
             const closeBtnSize = 30;
-            const closeBtnX = canvas.width - closeBtnSize - 10;
+            const closeBtnX = W - closeBtnSize - 10;
             const closeBtnY = 10;
             
             if (x >= closeBtnX && x <= closeBtnX + closeBtnSize && 
@@ -1346,7 +1390,7 @@ let devInvincible = false;
 
     function resetPlayer(startX, startY) {
         player.x = startX; player.y = startY; player.vx = 0; player.vy = 0; player.jumps = 0; player.stateValue = 4; player.invulnerableTimer = 60; player.isSSprint = false; player.isTripleSprinting = false; player.tempusTimer = 0; player.colorationTimer = 0; player.allaBreveTimer = 0; player.history = []; player.bounceTimer = 0; rightTapCount = 0; leftTapCount = 0; gradusTimer = 0; player.currentSlope = 'none';
-        updateFlashingEffects(); trail = []; projectiles = []; cameraX = player.x - canvas.width / 3; endlessAutoScroll = gameMode === 'GRADUS' ? 0 : cameraX; cameraY = gameMode === 'GRADUS' ? 0 : 0;
+        updateFlashingEffects(); trail = []; projectiles = []; cameraX = player.x - W / 3; endlessAutoScroll = gameMode === 'GRADUS' ? 0 : cameraX; cameraY = gameMode === 'GRADUS' ? 0 : 0;
     }
 
     function checkCollision(r1, r2) { return r1.x < r2.x + (r2.width || r2.w) && r1.x + (r1.width || r1.w) > r2.x && r1.y < r2.y + (r2.height || r2.h) && r1.y + (r1.height || r1.h) > r2.y; }
@@ -1486,16 +1530,16 @@ let devInvincible = false;
         
         if (gameMode === 'GRADUS') {
             gradusTimer += speedMult; if (gradusTimer > 120) { endlessAutoScroll -= (1.5 + currentLevel * 0.3) * timeMod; } if (endlessAutoScroll > 0) endlessAutoScroll = 0; 
-            let targetCamY = player.y - canvas.height * 0.6; cameraY = Math.min(endlessAutoScroll, targetCamY); if (cameraY > 0) cameraY = 0; cameraX = 0; endlessDistance = Math.max(0, Math.floor(-player.y / 150));
-            if (player.x < -20) player.x = canvas.width; if (player.x > canvas.width) player.x = -20; if (player.y > cameraY + canvas.height + 100) { die(); return; } 
+            let targetCamY = player.y - H * 0.6; cameraY = Math.min(endlessAutoScroll, targetCamY); if (cameraY > 0) cameraY = 0; cameraX = 0; endlessDistance = Math.max(0, Math.floor(-player.y / 150));
+            if (player.x < -20) player.x = W; if (player.x > W) player.x = -20; if (player.y > cameraY + H + 100) { die(); return; } 
         } else if (gameMode === 'ENDLESS') {
             let smod = 2.5 + (currentLevel * 0.7) + (endlessDistance / 500); endlessAutoScroll += smod * timeMod; cameraX = endlessAutoScroll; endlessDistance = Math.floor(cameraX / 150);
             if (player.x < cameraX - 24) { 
                 if (devInvincible) { player.x = cameraX - 24; player.vx = smod * timeMod; } 
                 else { die(); return; } 
             } 
-            if (player.x > cameraX + canvas.width - player.width) player.x = cameraX + canvas.width - player.width;
-        } else if (!boss.active) { if (player.x < 0) player.x = 0; cameraX = player.x - canvas.width / 3; if (cameraX < 0) cameraX = 0; if (cameraX > currentLevelData.length - canvas.width) cameraX = currentLevelData.length - canvas.width; }
+            if (player.x > cameraX + W - player.width) player.x = cameraX + W - player.width;
+        } else if (!boss.active) { if (player.x < 0) player.x = 0; cameraX = player.x - W / 3; if (cameraX < 0) cameraX = 0; if (cameraX > currentLevelData.length - W) cameraX = currentLevelData.length - W; }
 
         let gravity = devPhysics.gravity * speedMult; 
         if (keys.up && player.vy < 0) gravity = devPhysics.gravity * 0.625 * speedMult;
@@ -1503,7 +1547,7 @@ let devInvincible = false;
         const vyCap = 18 * speedMult;
         if (player.vy > vyCap) player.vy = vyCap; 
         player.y += player.vy; player.grounded = false; player.onIce = false;
-        if (gameMode !== 'GRADUS' && player.y > canvas.height + 50) { die(); return; }
+        if (gameMode !== 'GRADUS' && player.y > H + 50) { die(); return; }
 
         if (gameMode !== 'GRADUS') { currentLevelData.groundChunks.forEach(chunk => { if (player.vy > 0 && player.y + player.height - player.vy <= 350 && player.y + player.height >= 350) { if (player.x + player.width > chunk.x && player.x < chunk.x + chunk.w) { player.y = 350 - player.height; player.vy = 0; player.grounded = true; player.jumps = 0; } } }); }
 
@@ -1686,19 +1730,23 @@ let devInvincible = false;
         if (musicTimeout) clearTimeout(musicTimeout); 
         document.getElementById('fsBtn').style.display = 'block'; 
     }
-    function drawDiamond(ctx, x, y, size, filled) { ctx.beginPath(); ctx.moveTo(x, y - size); ctx.lineTo(x + size, y); ctx.lineTo(x, y + size); ctx.lineTo(x - size, y); ctx.closePath(); if (filled) ctx.fill(); else { ctx.lineWidth = 3; ctx.stroke(); } }
+    function drawDiamond(ctx, x, y, size, filled) { ctx.beginPath(); ctx.moveTo(x, y - size); ctx.lineTo(x + size, y); ctx.lineTo(x, y + size); ctx.lineTo(x - size, y); ctx.closePath(); if (filled) ctx.fill(); else { ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke(); ctx.lineJoin = 'miter'; } }
 
     function drawMensuralNote(ctx, x, y, stateName, isInvulnerable, opacity = 1, isColored = false, isGhost = false) {
         ctx.save(); const cx = x + 12; const cy = y + 35; let isDotted = stateName.startsWith('DOTTED_'); let baseState = stateName.replace('DOTTED_', '');
-        if (isGhost) { ctx.fillStyle = `rgba(180, 0, 0, 0.6)`; ctx.strokeStyle = `rgba(180, 0, 0, 0.6)`; } else if (isColored) { if (player.colorationTimer < 60 && Math.floor(Date.now() / 100) % 2 === 0) { ctx.fillStyle = `rgba(26, 16, 10, ${opacity})`; ctx.strokeStyle = `rgba(26, 16, 10, ${opacity})`; } else { ctx.shadowBlur = 15; ctx.shadowColor = 'white'; ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; } } else { ctx.fillStyle = `rgba(26, 16, 10, ${opacity})`; ctx.strokeStyle = `rgba(26, 16, 10, ${opacity})`; }
+        const inkA = `rgba(59, 49, 37, ${opacity})`;
+        if (isGhost) { ctx.fillStyle = 'rgba(181, 71, 58, 0.55)'; ctx.strokeStyle = 'rgba(181, 71, 58, 0.55)'; }
+        else if (isColored) { if (player.colorationTimer < 60 && Math.floor(Date.now() / 100) % 2 === 0) { ctx.fillStyle = inkA; ctx.strokeStyle = inkA; } else { ctx.shadowBlur = 14; ctx.shadowColor = 'rgba(156, 107, 60, 0.85)'; ctx.fillStyle = '#1f1a14'; ctx.strokeStyle = '#1f1a14'; } }
+        else { ctx.fillStyle = inkA; ctx.strokeStyle = inkA; }
+        const hollow = C.paper;
         switch(baseState) {
-            case 'FUSA': drawDiamond(ctx, cx, cy, 10, true); ctx.fillRect(cx - 1.5, cy - 45, 3, 35); ctx.beginPath(); ctx.moveTo(cx, cy - 45); ctx.quadraticCurveTo(cx + 12, cy - 20, cx + 18, cy - 20); ctx.stroke(); break;
-            case 'SEMIMINIMA': drawDiamond(ctx, cx, cy, 10, true); ctx.fillRect(cx - 1.5, cy - 35, 3, 25); break; 
-            case 'MINIMA': drawDiamond(ctx, cx, cy, 10, isColored || isGhost); ctx.fillRect(cx - 1.5, cy - 35, 3, 25); break;
-            case 'SEMIBREVIS': drawDiamond(ctx, cx, cy, 13, isColored || isGhost); break; 
-            case 'BREVIS': ctx.lineWidth = 3; if(isColored || isGhost) ctx.fillRect(cx-11, cy-11, 22, 22); else ctx.strokeRect(cx - 11, cy - 11, 22, 22); break;
-            case 'LONGA': ctx.lineWidth = 3; if(isColored || isGhost) { ctx.fillRect(cx - 11, cy - 11, 22, 22); } else { ctx.fillStyle = '#eeddbb'; ctx.fillRect(cx - 11, cy - 11, 22, 22); ctx.fillStyle = `rgba(26, 16, 10, ${opacity})`; ctx.strokeRect(cx - 11, cy - 11, 22, 22); } ctx.fillRect(cx + 9, cy, 3, 30); break;
-            case 'MAXIMA': ctx.lineWidth = 3; if(isColored || isGhost) { ctx.fillRect(cx - 18, cy - 12, 36, 24); } else { ctx.fillStyle = '#eeddbb'; ctx.fillRect(cx - 18, cy - 12, 36, 24); ctx.fillStyle = `rgba(26, 16, 10, ${opacity})`; ctx.strokeRect(cx - 18, cy - 12, 36, 24); } ctx.fillRect(cx + 16, cy, 3, 35); break;
+            case 'FUSA': drawDiamond(ctx, cx, cy, 10, true); ctx.fillRect(cx - 1.25, cy - 45, 2.5, 35); ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(cx, cy - 45); ctx.quadraticCurveTo(cx + 12, cy - 20, cx + 18, cy - 20); ctx.stroke(); break;
+            case 'SEMIMINIMA': drawDiamond(ctx, cx, cy, 10, true); ctx.fillRect(cx - 1.25, cy - 35, 2.5, 25); break;
+            case 'MINIMA': drawDiamond(ctx, cx, cy, 10, isColored || isGhost); ctx.fillRect(cx - 1.25, cy - 35, 2.5, 25); break;
+            case 'SEMIBREVIS': drawDiamond(ctx, cx, cy, 13, isColored || isGhost); break;
+            case 'BREVIS': ctx.lineWidth = 2.5; if (isColored || isGhost) { pathRoundRect(ctx, cx - 11, cy - 11, 22, 22, 3); ctx.fill(); } else { pathRoundRect(ctx, cx - 11, cy - 11, 22, 22, 3); ctx.stroke(); } break;
+            case 'LONGA': ctx.lineWidth = 2.5; if (isColored || isGhost) { pathRoundRect(ctx, cx - 11, cy - 11, 22, 22, 3); ctx.fill(); } else { const f = ctx.fillStyle; ctx.fillStyle = hollow; pathRoundRect(ctx, cx - 11, cy - 11, 22, 22, 3); ctx.fill(); ctx.fillStyle = f; ctx.stroke(); } ctx.fillRect(cx + 9, cy, 2.5, 30); break;
+            case 'MAXIMA': ctx.lineWidth = 2.5; if (isColored || isGhost) { pathRoundRect(ctx, cx - 18, cy - 12, 36, 24, 3); ctx.fill(); } else { const f = ctx.fillStyle; ctx.fillStyle = hollow; pathRoundRect(ctx, cx - 18, cy - 12, 36, 24, 3); ctx.fill(); ctx.fillStyle = f; ctx.stroke(); } ctx.fillRect(cx + 16, cy, 2.5, 35); break;
         }
         if (isDotted) { ctx.beginPath(); ctx.arc(cx + 20, cy - 5, 2.8, 0, Math.PI*2); ctx.fill(); }
         ctx.restore();
@@ -1719,23 +1767,111 @@ let devInvincible = false;
         ctx.closePath();
     }
 
-    function drawCheckpoint(ctx, cp) { ctx.fillStyle = cp.active ? '#8b6508' : 'rgba(139, 101, 8, 0.3)'; ctx.fillRect(cp.x, 230, 4, 120); ctx.fillRect(cp.x + 10, 230, 4, 120); ctx.font = '40px serif'; ctx.fillText('𝄐', cp.x - 10, 220); if (cp.active) { ctx.font = '14px serif'; ctx.fillText(cp.label, cp.x - 20, 180); } }
-    
+    function drawCheckpoint(ctx, cp) {
+        const col = cp.active ? C.mark : 'rgba(156, 107, 60, 0.28)';
+        ctx.fillStyle = col;
+        pathRoundRect(ctx, cp.x, 230, 3, 120, 1.5); ctx.fill();
+        pathRoundRect(ctx, cp.x + 10, 230, 3, 120, 1.5); ctx.fill();
+        ctx.textAlign = 'left'; ctx.font = `40px ${MUSIC}`; ctx.fillText('𝄐', cp.x - 10, 220);
+        if (cp.active) { ctx.font = font(12, 600); ctx.fillText(cp.label, cp.x - 20, 180); }
+    }
+
     function drawLigature(ctx, plat) {
-        if (plat.type === 'ground') return; ctx.fillStyle = '#1a100a'; let drawY = plat.y + (plat.shakeTimer > 0 && plat.shakeTimer <= 30 ? Math.sin(plat.shakeTimer * 2) * 2 : 0);
-        if (plat.type === 'ice') { 
-            ctx.beginPath(); ctx.moveTo(plat.x, drawY); ctx.lineTo(plat.x + plat.w, drawY - 20); ctx.lineTo(plat.x + plat.w, drawY + plat.h - 20); ctx.lineTo(plat.x, drawY + plat.h); ctx.closePath(); ctx.fill(); ctx.fillRect(plat.x + plat.w - 4, drawY - 20, 4, 35); 
-        } else if (plat.type === 'descend') { 
-            ctx.beginPath(); ctx.moveTo(plat.x, drawY - 20); ctx.lineTo(plat.x + plat.w, drawY); ctx.lineTo(plat.x + plat.w, drawY + plat.h); ctx.lineTo(plat.x, drawY + plat.h - 20); ctx.closePath(); ctx.fill(); ctx.fillRect(plat.x + plat.w - 4, drawY, 4, 35);
-        } else if (plat.type === 'rising') { 
-            ctx.fillRect(plat.x, drawY + 15, plat.w/2, plat.h); ctx.fillRect(plat.x + plat.w/2, drawY, plat.w/2, plat.h); ctx.fillRect(plat.x + plat.w/2 - 2, drawY, 4, 15 + plat.h); ctx.fillRect(plat.x + plat.w - 4, drawY, 4, 35); 
-        } else { 
-            ctx.fillRect(plat.x, drawY, plat.w, plat.h); ctx.fillRect(plat.x + plat.w - 4, drawY, 4, 35); 
+        if (plat.type === 'ground') return; ctx.fillStyle = C.ink; let drawY = plat.y + (plat.shakeTimer > 0 && plat.shakeTimer <= 30 ? Math.sin(plat.shakeTimer * 2) * 2 : 0);
+        if (plat.shakeTimer > 0 && plat.shakeTimer <= 30) ctx.fillStyle = C.inkSoft;
+        if (plat.type === 'ice') {
+            ctx.beginPath(); ctx.moveTo(plat.x, drawY); ctx.lineTo(plat.x + plat.w, drawY - 20); ctx.lineTo(plat.x + plat.w, drawY + plat.h - 20); ctx.lineTo(plat.x, drawY + plat.h); ctx.closePath(); ctx.fill(); ctx.fillRect(plat.x + plat.w - 3, drawY - 20, 3, 35);
+        } else if (plat.type === 'descend') {
+            ctx.beginPath(); ctx.moveTo(plat.x, drawY - 20); ctx.lineTo(plat.x + plat.w, drawY); ctx.lineTo(plat.x + plat.w, drawY + plat.h); ctx.lineTo(plat.x, drawY + plat.h - 20); ctx.closePath(); ctx.fill(); ctx.fillRect(plat.x + plat.w - 3, drawY, 3, 35);
+        } else if (plat.type === 'rising') {
+            pathRoundRect(ctx, plat.x, drawY + 15, plat.w / 2, plat.h, 3); ctx.fill(); pathRoundRect(ctx, plat.x + plat.w / 2, drawY, plat.w / 2, plat.h, 3); ctx.fill(); ctx.fillRect(plat.x + plat.w / 2 - 1.5, drawY, 3, 15 + plat.h); ctx.fillRect(plat.x + plat.w - 3, drawY, 3, 35);
+        } else {
+            pathRoundRect(ctx, plat.x, drawY, plat.w, plat.h, 3); ctx.fill(); ctx.fillRect(plat.x + plat.w - 3, drawY, 3, 35);
         }
     }
 
+    function drawMenu() {
+        // Faint staff behind the title
+        ctx.strokeStyle = C.line; ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(60, 50.5 + i * 11); ctx.lineTo(W - 60, 50.5 + i * 11); ctx.stroke(); }
+        ctx.fillStyle = C.mark;
+        drawDiamond(ctx, 86, 72, 7, true);
+        ctx.strokeStyle = C.mark; drawDiamond(ctx, W - 86, 83, 7, false);
+
+        let titleSize = 58;
+        const mainTitle = 'MENSURATOR';
+        ctx.textAlign = 'center';
+        spacing(10);
+        for (;;) {
+            ctx.font = font(titleSize, 800);
+            if (ctx.measureText(mainTitle).width <= 540 || titleSize <= 30) break;
+            titleSize -= 2;
+        }
+        const tw = ctx.measureText(mainTitle).width;
+        ctx.fillStyle = C.paper; ctx.fillRect(W / 2 - tw / 2 - 18, 44, tw + 36, 56);
+        ctx.fillStyle = C.ink;
+        ctx.fillText(mainTitle, W / 2 + 5, 94);
+        spacing(0);
+
+        ctx.fillStyle = C.soft;
+        ctx.font = font(13, 500);
+        ctx.fillText('Unmute your device for sound!', W / 2, 130);
+
+        MENU_BTNS.forEach((b, i) => {
+            const hover = menuHover === i;
+            ctx.save();
+            if (b.primary) {
+                const pulse = (Math.sin(Date.now() / 400) + 1) / 2;
+                ctx.shadowColor = `rgba(156, 107, 60, ${0.18 + pulse * 0.22})`;
+                ctx.shadowBlur = 10 + pulse * 10; ctx.shadowOffsetY = 3;
+                pill(b.x, b.y, b.w, b.h, hover ? '#2a231a' : C.ink, null, 16);
+            } else {
+                pill(b.x, b.y, b.w, b.h, hover ? C.band : C.paper, hover ? C.mark : C.line, 16);
+            }
+            ctx.restore();
+            const m = b.label.match(/^(.*) \((.*)\)$/);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = b.primary ? C.paper : C.ink;
+            if (m) {
+                ctx.font = font(17, 700);
+                ctx.fillText(m[1], b.x + b.w / 2, b.y + 26);
+                ctx.fillStyle = b.primary ? 'rgba(255, 253, 248, 0.65)' : C.soft;
+                ctx.font = font(11, 600); spacing(1.5);
+                ctx.fillText(m[2].toUpperCase(), b.x + b.w / 2, b.y + 43);
+                spacing(0);
+            } else {
+                ctx.font = font(17, 700);
+                ctx.fillText(b.label, b.x + b.w / 2, b.y + 34);
+            }
+        });
+
+        // Install Button (Top Right)
+        const ib = INSTALL_BTN;
+        pill(ib.x, ib.y, ib.w, ib.h, C.paper, C.line);
+        ctx.fillStyle = C.ink;
+        ctx.font = font(13, 600);
+        ctx.textAlign = 'center';
+        ctx.fillText('Install', ib.x + ib.w / 2, ib.y + 20);
+
+        const credit = 'Feedback > mensuratorgame@gmail.com  Samuel Reid Navarro  ·  ' + new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+        ctx.fillStyle = C.soft;
+        ctx.font = font(11, 500);
+        ctx.fillText(credit, W / 2, 374);
+    }
+
+    function drawStatusPill(text, color, y) {
+        ctx.font = font(12, 700);
+        const w = ctx.measureText(text).width + 22;
+        ctx.save(); ctx.globalAlpha = 0.12; pill(W - 24 - w, y, w, 22, color); ctx.restore();
+        ctx.fillStyle = color; ctx.textAlign = 'right';
+        ctx.fillText(text, W - 35, y + 15);
+        return y + 28;
+    }
+
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        ctx.textBaseline = 'alphabetic';
 
         titleDevBtn.style.display = (gameState === 'MENU') ? 'block' : 'none';
         if (isTouchDevice) {
@@ -1751,203 +1887,132 @@ let devInvincible = false;
             }
         }
 
-        if (gameState === 'MENU' || gameState === 'OPTIONS') {
-            const MENU_X = 110, MENU_W = 580, R_OUT = 24, R_IN = 16;
-            ctx.fillStyle = 'rgba(238, 221, 187, 0.35)';
-            pathRoundRect(ctx, 100, 16, 600, 368, R_OUT);
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(184, 134, 11, 0.55)';
-            ctx.lineWidth = 2;
-            pathRoundRect(ctx, 100, 16, 600, 368, R_OUT);
-            ctx.stroke();
-
-            ctx.fillStyle = 'rgba(26, 16, 10, 0.18)';
-            pathRoundRect(ctx, MENU_X, 26, MENU_W, 80, R_IN);
-            ctx.fill();
-            ctx.strokeStyle = '#b8860b';
-            ctx.lineWidth = 2;
-            pathRoundRect(ctx, MENU_X, 26, MENU_W, 80, R_IN);
-            ctx.stroke();
-
-            let titleSize = 58;
-            const mainTitle = 'MENSURATOR';
-            ctx.textAlign = 'left';
-            for (;;) {
-                ctx.font = `bold ${titleSize}px "Book Antiqua", Palatino, serif`;
-                if (ctx.measureText(mainTitle).width <= MENU_W - 36 || titleSize <= 30) break;
-                titleSize -= 2;
-            }
-            ctx.fillStyle = '#cc0000';
-            ctx.fillText(mainTitle, MENU_X + (MENU_W - ctx.measureText(mainTitle).width) / 2, 26 + 54);
-            
-            ctx.fillStyle = '#b8860b';
-            ctx.font = 'italic 16px serif';
-            ctx.fillText('Unmute your device for sound!', MENU_X + (MENU_W - ctx.measureText('Unmute your Phone for sound!').width) / 2, 26 + 77);
-
-            const drawModeButton = (top, text, accent = '#b8860b', bgStyle = 'rgba(238, 221, 187, 0.45)', isPulsing = false) => {
-                const bh = 52;
-                
-                ctx.save();
-                if (isPulsing) {
-                    const pulse = (Math.sin(Date.now() / 250) + 1) / 2; // Ranges 0 to 1
-                    ctx.shadowBlur = 10 + (pulse * 15);
-                    ctx.shadowColor = `rgba(255, 215, 0, ${0.3 + pulse * 0.5})`; // Yellow glow
-                    bgStyle = `rgba(255, 225, 120, ${0.3 + pulse * 0.4})`; // Soft yellow background
-                    accent = `rgba(255, 215, 0, ${0.6 + pulse * 0.4})`; // Bright yellow border
-                }
-
-                ctx.fillStyle = bgStyle;
-                pathRoundRect(ctx, MENU_X, top, MENU_W, bh, R_IN);
-                ctx.fill();
-                
-                ctx.strokeStyle = accent;
-                ctx.lineWidth = 2;
-                pathRoundRect(ctx, MENU_X, top, MENU_W, bh, R_IN);
-                ctx.stroke();
-                
-                // Reset shadow so the text remains crisp
-                ctx.shadowBlur = 0; 
-                ctx.fillStyle = '#2a1810';
-                ctx.font = '22px "Book Antiqua", Palatino, serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(text, MENU_X + MENU_W / 2, top + 34);
-                ctx.restore();
-            };
-
-            drawModeButton(118, 'Ars Antiqua (Classic)', undefined, undefined, true);
-            drawModeButton(184, 'Ars Nova (Endless)');
-            drawModeButton(250, 'Gradus ad Parnassum');
-            drawModeButton(316, 'Magistri Mensurarum');
-
-            // Install Button (Top Right)
-            ctx.fillStyle = 'rgba(184, 134, 11, 0.2)';
-            pathRoundRect(ctx, 660, 16, 120, 36, 10);
-            ctx.fill();
-            ctx.strokeStyle = '#b8860b';
-            ctx.lineWidth = 2;
-            pathRoundRect(ctx, 660, 16, 120, 36, 10);
-            ctx.stroke();
-            ctx.fillStyle = '#000000';
-            ctx.font = 'bold 30px "Book Antiqua", serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('Install', 720, 45);
-
-            const credit = 'Feedback > mensuratorgame@gmail.com  Samuel Reid Navarro  ·  ' + new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-            ctx.fillStyle = '#3d2914';
-            ctx.font = 'italic 13px serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(credit, 400, 378);
-            ctx.textAlign = 'center';
-            return;
-        }
+        if (gameState === 'MENU' || gameState === 'OPTIONS') { drawMenu(); return; }
 
         if (gameState === 'PLAY' || gameState === 'SPLASH' || gameState === 'DEATH_FREEZE' || gameState === 'WIN') {
-            ctx.save(); ctx.translate(-cameraX, -cameraY); 
-            ctx.strokeStyle = '#3a2518'; ctx.lineWidth = 2;
-            if (gameMode !== 'GRADUS' && currentLevelData && currentLevelData.groundChunks) { 
-                currentLevelData.groundChunks.forEach(chunk => { 
-                    for (let i = 0; i < 5; i++) { 
-                        ctx.beginPath(); 
-                        ctx.moveTo(chunk.x, 230 + i * 30); 
-                        ctx.lineTo(chunk.x + chunk.w, 230 + i * 30); 
-                        ctx.stroke(); 
-                    } 
-                }); 
-            } else if (gameMode === 'GRADUS') { 
-                let startY = Math.floor(cameraY / 100) * 100; 
-                for (let i = 0; i < 5; i++) { 
-                    ctx.beginPath(); 
-                    ctx.moveTo(100 + i * 150, startY - 1000); 
-                    ctx.lineTo(100 + i * 150, cameraY + canvas.height + 1000); 
-                    ctx.stroke(); 
-                } 
+            ctx.save(); ctx.translate(-cameraX, -cameraY);
+            ctx.strokeStyle = C.staff; ctx.lineWidth = 1.5;
+            if (gameMode !== 'GRADUS' && currentLevelData && currentLevelData.groundChunks) {
+                currentLevelData.groundChunks.forEach(chunk => {
+                    for (let i = 0; i < 5; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(chunk.x, 230 + i * 30);
+                        ctx.lineTo(chunk.x + chunk.w, 230 + i * 30);
+                        ctx.stroke();
+                    }
+                });
+            } else if (gameMode === 'GRADUS') {
+                let startY = Math.floor(cameraY / 100) * 100;
+                for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(100 + i * 150, startY - 1000);
+                    ctx.lineTo(100 + i * 150, cameraY + H + 1000);
+                    ctx.stroke();
+                }
             }
 
         if (gameMode === 'CLASSIC') {
-            ctx.fillStyle = '#1a100a'; ctx.font = '70px serif'; ctx.fillText('𝄢', 20, 290); currentLevelData.checkpoints.forEach(cp => drawCheckpoint(ctx, cp));
-if (!boss.active) { 
-                ctx.fillStyle = '#8b6508'; 
-                ctx.font = '60px serif'; 
-                ctx.fillText('𝄡', currentLevelData.goal.x, 320); 
-                
-                // Add the "Finalis" label
-                ctx.font = 'italic 22px "Book Antiqua", serif';
-                ctx.fillText('Finalis', currentLevelData.goal.x - 15, 150);
+            ctx.textAlign = 'left';
+            ctx.fillStyle = C.ink; ctx.font = `70px ${MUSIC}`; ctx.fillText('𝄢', 20, 290); currentLevelData.checkpoints.forEach(cp => drawCheckpoint(ctx, cp));
+            if (!boss.active) {
+                ctx.strokeStyle = 'rgba(156, 107, 60, 0.35)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 8]);
+                ctx.beginPath();
+                ctx.moveTo(currentLevelData.goal.x + 20, 0);
+                ctx.lineTo(currentLevelData.goal.x + 20, H);
+                ctx.stroke();
+                ctx.setLineDash([]);
 
-                ctx.strokeStyle = 'rgba(139, 101, 8, 0.3)'; 
-                ctx.lineWidth = 5; 
-                ctx.beginPath(); 
-                ctx.moveTo(currentLevelData.goal.x + 20, 0); 
-                ctx.lineTo(currentLevelData.goal.x + 20, canvas.height); 
-                ctx.stroke(); 
-            }        }
+                ctx.fillStyle = C.mark;
+                ctx.textAlign = 'left';
+                ctx.font = `60px ${MUSIC}`;
+                ctx.fillText('𝄡', currentLevelData.goal.x, 320);
 
-        if (boss.active) {
-            ctx.fillStyle = '#8b0000'; ctx.font = 'bold 60px serif'; ctx.fillText('♯ ♭', boss.x - 20, boss.y + 60);
-            ctx.fillStyle = '#1a100a'; ctx.fillRect(boss.x - 20, boss.y - 20, 80, 8); ctx.fillStyle = '#8b0000'; ctx.fillRect(boss.x - 20, boss.y - 20, 80 * (boss.hp / boss.maxHp), 8);
-            ctx.font = '16px serif'; ctx.fillText('MI-FA (Diabolus in Musica)', boss.x - 40, boss.y - 30);
-            ctx.fillStyle = '#8b0000'; ctx.font = 'bold 24px serif'; boss.projectiles.forEach(bp => { ctx.fillText(Math.random() > 0.5 ? '♭' : '♯', bp.x, bp.y + 20); });
+                // "Finalis" label
+                ctx.font = font(16, 600, true);
+                ctx.fillText('Finalis', currentLevelData.goal.x - 8, 150);
+            }
         }
 
-        currentLevelData.walls.forEach(wall => { ctx.fillStyle = '#1a100a'; ctx.fillRect(wall.x, wall.y, wall.w, wall.h); });
-        ctx.fillStyle = '#1a100a'; currentLevelData.fallingLongas.forEach(l => { 
-            if (!l.dead) { 
-                let lx = l.x; 
-                if (l.state === 'shaking') lx += (Math.random() > 0.5 ? 2 : -2); 
-                
-                ctx.fillStyle = (l.state === 'shaking' || l.state === 'falling') ? '#ff0000' : '#8b0000';
-                const width = 12; 
-                const centerX = lx; 
-                
-                ctx.fillRect(centerX, l.y, width, 60); 
-            } 
+        if (boss.active) {
+            ctx.textAlign = 'left';
+            ctx.fillStyle = C.red; ctx.font = `60px ${MUSIC}`; ctx.fillText('♯ ♭', boss.x - 20, boss.y + 60);
+            pill(boss.x - 20, boss.y - 20, 80, 6, C.line); 
+            if (boss.hp > 0) pill(boss.x - 20, boss.y - 20, Math.max(6, 80 * (boss.hp / boss.maxHp)), 6, C.red);
+            ctx.fillStyle = C.red; ctx.font = font(12, 600); ctx.fillText('MI-FA (Diabolus in Musica)', boss.x - 40, boss.y - 30);
+            ctx.fillStyle = C.red; ctx.font = `26px ${MUSIC}`; boss.projectiles.forEach(bp => { ctx.fillText(Math.random() > 0.5 ? '♭' : '♯', bp.x, bp.y + 20); });
+        }
+
+        currentLevelData.walls.forEach(wall => { ctx.fillStyle = C.ink; pathRoundRect(ctx, wall.x, wall.y, wall.w, wall.h, 3); ctx.fill(); });
+        currentLevelData.fallingLongas.forEach(l => {
+            if (!l.dead) {
+                let lx = l.x;
+                if (l.state === 'shaking') lx += (Math.random() > 0.5 ? 2 : -2);
+                ctx.fillStyle = (l.state === 'shaking' || l.state === 'falling') ? C.redHot : C.red;
+                pathRoundRect(ctx, lx, l.y, 12, 60, 3); ctx.fill();
+            }
         });
         currentLevelData.platforms.forEach(plat => drawLigature(ctx, plat));
 
-        ctx.fillStyle = '#1a100a'; currentLevelData.scoreNotes.forEach(note => { if (note.active) drawDiamond(ctx, note.x + 7, note.y + 7, 8, true); });
-        
-        ctx.fillStyle = '#00008b'; ctx.font = 'bold 36px serif'; 
-        currentLevelData.allaBreves.forEach(item => { 
+        ctx.fillStyle = C.mark; currentLevelData.scoreNotes.forEach(note => { if (note.active) drawDiamond(ctx, note.x + 7, note.y + 7, 8, true); });
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = C.blue; ctx.font = font(34, 700);
+        currentLevelData.allaBreves.forEach(item => {
             if (item.active) {
-                ctx.fillText('C', item.x - 5, item.y + 35); 
-                ctx.fillRect(item.x - 5, item.y + 3, 3, 40); 
-            } 
+                ctx.fillText('C', item.x - 5, item.y + 35);
+                pathRoundRect(ctx, item.x - 5, item.y + 3, 3, 40, 1.5); ctx.fill();
+            }
         });
 
-        ctx.fillStyle = '#1a100a'; ctx.font = 'bold 24px sans-serif'; currentLevelData.tempusItems.forEach(item => { if (item.active) ctx.fillText('◯', item.x, item.y + 20); });
-        ctx.fillStyle = '#000'; currentLevelData.inkPots.forEach(pot => { if (pot.active) { ctx.beginPath(); ctx.arc(pot.x + 10, pot.y + 15, 10, 0, Math.PI*2); ctx.fill(); ctx.fillRect(pot.x + 5, pot.y, 10, 10); } });
+        ctx.strokeStyle = C.mark; ctx.lineWidth = 3;
+        currentLevelData.tempusItems.forEach(item => { if (item.active) { ctx.beginPath(); ctx.arc(item.x + 12.5, item.y + 12.5, 10, 0, Math.PI * 2); ctx.stroke(); } });
+        ctx.fillStyle = C.ink; currentLevelData.inkPots.forEach(pot => { if (pot.active) { ctx.beginPath(); ctx.arc(pot.x + 10, pot.y + 15, 10, 0, Math.PI*2); ctx.fill(); pathRoundRect(ctx, pot.x + 5, pot.y, 10, 10, 2); ctx.fill(); } });
 
-        currentLevelData.enemies.forEach(e => { if(!e.dead) { ctx.fillStyle = e.aggro ? '#ff0000' : '#8b0000'; ctx.fillRect(e.x, e.y, e.w, e.h); } }); 
-        ctx.fillStyle = '#b30000'; ctx.font = 'bold 30px serif'; currentLevelData.jumpingFlats.forEach(flat => { if (!flat.dead && flat.state !== 'hidden') ctx.fillText('♭', flat.x, flat.y + 25); });
-        ctx.fillStyle = '#8b0000'; ctx.font = 'bold 40px serif'; currentLevelData.flyingEnemies.forEach(e => { if(!e.dead) ctx.fillText('♯', e.x, e.y + 35); });
-        ctx.fillStyle = '#1a100a'; projectiles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill(); });
-        
-        if (gameMode === 'ENDLESS') { ctx.fillStyle = 'rgba(26, 16, 10, 0.95)'; ctx.fillRect(cameraX - 1000, -500, 1000 - 24, canvas.height + 1000); } 
-        else if (gameMode === 'GRADUS') { ctx.fillStyle = 'rgba(26, 16, 10, 0.95)'; ctx.fillRect(-1000, cameraY + canvas.height + 24, canvas.width + 2000, 1000); }
+        currentLevelData.enemies.forEach(e => { if(!e.dead) { ctx.fillStyle = e.aggro ? C.redHot : C.red; pathRoundRect(ctx, e.x, e.y, e.w, e.h, 3); ctx.fill(); } });
+        ctx.fillStyle = C.red; ctx.font = `30px ${MUSIC}`; currentLevelData.jumpingFlats.forEach(flat => { if (!flat.dead && flat.state !== 'hidden') ctx.fillText('♭', flat.x, flat.y + 25); });
+        ctx.fillStyle = C.red; ctx.font = `40px ${MUSIC}`; currentLevelData.flyingEnemies.forEach(e => { if(!e.dead) ctx.fillText('♯', e.x, e.y + 35); });
+        ctx.fillStyle = C.ink; projectiles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill(); });
+
+        if (gameMode === 'ENDLESS') { ctx.fillStyle = 'rgba(59, 49, 37, 0.9)'; ctx.fillRect(cameraX - 1000, -500, 1000 - 24, H + 1000); ctx.fillStyle = C.red; ctx.fillRect(cameraX - 26, -500, 2, H + 1000); }
+        else if (gameMode === 'GRADUS') { ctx.fillStyle = 'rgba(59, 49, 37, 0.9)'; ctx.fillRect(-1000, cameraY + H + 24, W + 2000, 1000); ctx.fillStyle = C.red; ctx.fillRect(-1000, cameraY + H + 24, W + 2000, 2); }
 
         if (currentLevelData.hasFuga && player.history.length === 60) { let ghost = player.history[0]; drawMensuralNote(ctx, ghost.x, ghost.y, noteStates[ghost.state], false, 0.6, false, true); }
 
         const isColored = player.colorationTimer > 0;
-        trail.forEach((t, i) => drawMensuralNote(ctx, t.x, t.y, noteStates[t.state], false, (i+1)/10, isColored));
+        trail.forEach((t, i) => drawMensuralNote(ctx, t.x, t.y, noteStates[t.state], false, (i+1)/14, isColored));
         drawMensuralNote(ctx, player.x, player.y, noteStates[getStateIndex(player.stateValue)], player.invulnerableTimer > 0, 1, isColored);
 
-        particles.forEach(p => { ctx.fillStyle = p.color || 'rgba(100, 80, 60, 0.6)'; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2); ctx.fill(); });
-        ctx.restore(); 
+        particles.forEach(p => { ctx.fillStyle = p.color === '#b30000' ? C.red : (p.color || 'rgba(138, 123, 102, 0.45)'); ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2); ctx.fill(); });
+        ctx.restore();
 
         if (gameState === 'SPLASH') {
-            ctx.fillStyle = 'rgba(26, 16, 10, 0.95)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+            veil(0.95);
+
             ctx.textAlign = 'center';
-            ctx.fillStyle = '#b8860b'; ctx.font = 'bold 40px "Book Antiqua", serif';
             const titleSplash = modesData[currentLevel].name;
-            ctx.fillText(titleSplash, canvas.width / 2, 100);
-            
-            ctx.fillStyle = '#d4c3a3'; ctx.font = 'italic 18px "Book Antiqua", serif';
+            const colon = titleSplash.indexOf(':');
+            const splashLabel = colon > 0 ? titleSplash.slice(0, colon) : '';
+            const splashName = colon > 0 ? titleSplash.slice(colon + 1).trim() : titleSplash;
+            if (splashLabel) {
+                ctx.fillStyle = C.mark; ctx.font = font(13, 700); spacing(3);
+                ctx.fillText(splashLabel.toUpperCase(), W / 2 + 1.5, 92);
+                spacing(0);
+            }
+            let nameSize = 42;
+            for (;;) { ctx.font = font(nameSize, 800); if (ctx.measureText(splashName).width <= 700 || nameSize <= 22) break; nameSize -= 2; }
+            ctx.fillStyle = C.ink;
+            ctx.fillText(splashName, W / 2, 142);
+
+            ctx.fillStyle = C.line; ctx.fillRect(W / 2 - 24, 166, 48, 2);
+
+            ctx.fillStyle = C.inkSoft; ctx.font = font(17, 400, true);
             const quoteSplash = modesData[currentLevel].quote;
             const quoteParts = quoteSplash.split(' - ');
             const quoteBody = quoteParts[0];
             const quoteAuthor = quoteParts.length > 1 ? quoteParts[1] : '';
-            const maxWidth = 750;
+            const maxWidth = 640;
             const quoteWords = quoteBody.split(' ');
             let quoteLines = [];
             let quoteLine = '';
@@ -1961,92 +2026,99 @@ if (!boss.active) {
                 }
             }
             if (quoteLine) quoteLines.push(quoteLine);
-            let qy = 160;
+            let qy = 206;
             for (let ql of quoteLines) {
-                ctx.fillText(ql, canvas.width / 2, qy);
-                qy += 20;
+                ctx.fillText(ql, W / 2, qy);
+                qy += 24;
             }
             if (quoteAuthor) {
-                ctx.font = 'italic 14px "Book Antiqua", serif';
-                ctx.fillText('- ' + quoteAuthor, canvas.width / 2, qy + 5);
+                ctx.fillStyle = C.soft;
+                ctx.font = font(13, 500);
+                ctx.fillText(quoteAuthor, W / 2, qy + 4);
             }
-            
-            ctx.fillStyle = `rgba(184, 134, 11, ${0.5 + Math.sin(Date.now() / 300) * 0.5})`;
-            ctx.font = 'bold 20px sans-serif';
-            ctx.fillText('Press any key or tap to continue', canvas.width / 2, canvas.height - 40);
+
+            ctx.fillStyle = `rgba(156, 107, 60, ${0.55 + Math.sin(Date.now() / 300) * 0.45})`;
+            ctx.font = font(14, 600);
+            ctx.fillText('Press any key or tap to continue', W / 2, H - 40);
         } else if (gameState !== 'DEATH_FREEZE' && gameState !== 'WIN' && gameState !== 'MENU' && gameState !== 'PAUSE') {
             if (currentLevel === 0 && gameMode === 'CLASSIC') {
                 ctx.save();
-                
-                // Add control hints at the start of the level
+
+                // Control hints at the start of the level
                 if (player.x < 1000) {
-                    ctx.globalAlpha = 0.7 + Math.sin(Date.now() / 400) * 0.3;
-                    ctx.fillStyle = '#b8860b';
-                    ctx.font = 'bold 60px "Book Antiqua", serif';
+                    ctx.globalAlpha = 0.7 + Math.sin(Date.now() / 400) * 0.2;
+                    ctx.fillStyle = C.soft;
                     ctx.textAlign = 'center';
-                    
+
                     if (isTouchDevice) {
-                        // Mobile controls hint
-                        ctx.fillText('Controls down below', canvas.width / 2, 120);
-                        ctx.font = 'bold 30px sans-serif';
-                        ctx.fillText('↓', canvas.width / 2, 160);
-                        
-                        ctx.fillStyle = '#b8860b';
-                        ctx.font = 'italic 30px serif';
-                        ctx.fillText('Unmute your device for sound!', canvas.width / 2, 190);
-                        
-                        ctx.font = 'bold 80px sans-serif';
-                        ctx.fillText('→', canvas.width / 2, 240);
+                        ctx.font = font(32, 800);
+                        ctx.fillText('Controls down below', W / 2, 124);
+                        ctx.font = font(26, 700);
+                        ctx.fillText('↓', W / 2, 156);
+                        ctx.font = font(16, 500, true);
+                        ctx.fillText('Unmute your device for sound!', W / 2, 184);
+                        ctx.font = font(44, 700);
+                        ctx.fillText('→', W / 2, 228);
                     } else {
-                        // Desktop controls hint
-                        ctx.fillText('Controls: WASD or ← → ↑', canvas.width / 2, 120);
-                        
-                        ctx.fillStyle = '#b8860b';
-                        ctx.font = 'italic 30px serif';
-                        ctx.fillText('Unmute your device for sound!', canvas.width / 2, 150);
-                        
-                        ctx.font = 'bold 80px sans-serif';
-                        ctx.fillText('→', canvas.width / 2, 200);
-                        ctx.font = 'bold 300px sans-serif';
+                        ctx.font = font(32, 800);
+                        ctx.fillText('Controls: WASD or ← → ↑', W / 2, 128);
+                        ctx.font = font(16, 500, true);
+                        ctx.fillText('Unmute your device for sound!', W / 2, 156);
+                        ctx.font = font(44, 700);
+                        ctx.fillText('→', W / 2, 200);
                     }
                     ctx.textAlign = 'left';
                 }
                 if (player.x > 2800 && player.x < 32000) {
-                    ctx.globalAlpha = 0.7 + Math.sin(Date.now() / 450) * 0.3;
-                    ctx.fillStyle = '#b8860b';
-                    ctx.font = 'bold 40px sans-serif';
+                    ctx.globalAlpha = 0.7 + Math.sin(Date.now() / 450) * 0.2;
+                    ctx.fillStyle = C.soft;
+                    ctx.textAlign = 'left';
+                    ctx.font = font(36, 700);
                     ctx.fillText('↠', 380, 150);
-                    ctx.globalAlpha = 0.8;
-                    ctx.font = 'bold 25px "Book Antiqua", serif';
-                    ctx.fillText('Double tap to run!', 400, 190);
+                    ctx.globalAlpha = 0.85;
+                    ctx.font = font(20, 700);
+                    ctx.fillText('Double tap to run!', 400, 186);
                 }
-                
+
                 ctx.restore();
             }
-        } 
-            
-            if (gameMode === 'CLASSIC') { let progress = player.x / currentLevelData.goal.x; if (progress > 1) progress = 1; ctx.fillStyle = 'rgba(58, 37, 24, 0.28)'; ctx.fillRect(0, canvas.height - 10, canvas.width, 10); ctx.fillStyle = '#b8860b'; ctx.fillRect(0, canvas.height - 10, canvas.width * progress, 10); }
-            
-            ctx.textAlign = 'left';
-            ctx.fillStyle = '#1a100a';
-            ctx.font = 'bold 28px "Book Antiqua", serif';
-            const modeLabel = modesData[currentLevel].name.split(':')[0];
-            ctx.fillText(modeLabel, 28, 35);
-            
-            ctx.fillStyle = '#1a100a';
-            ctx.font = 'bold 28px "Book Antiqua", serif';
-            ctx.fillText(modesData[currentLevel].modeName, 28, 58);
+        }
 
-            const maxQuoteWidth = 420;
+            if (gameState !== 'SPLASH') {
+            // Soft paper band so the HUD stays readable over the level
+            const hudFade = ctx.createLinearGradient(0, 0, 0, 84);
+            hudFade.addColorStop(0, 'rgba(255, 253, 248, 0.92)');
+            hudFade.addColorStop(0.7, 'rgba(255, 253, 248, 0.75)');
+            hudFade.addColorStop(1, 'rgba(255, 253, 248, 0)');
+            ctx.fillStyle = hudFade; ctx.fillRect(0, 0, W, 84);
+
+            if (gameMode === 'CLASSIC') {
+                let progress = player.x / currentLevelData.goal.x; if (progress > 1) progress = 1; if (progress < 0) progress = 0;
+                pill(24, H - 10, W - 48, 4, C.line);
+                if (progress > 0) pill(24, H - 10, Math.max(4, (W - 48) * progress), 4, C.mark);
+            }
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = C.soft;
+            ctx.font = font(11, 700); spacing(2);
+            const modeLabel = modesData[currentLevel].name.split(':')[0];
+            ctx.fillText(modeLabel.toUpperCase(), 24, 30);
+            spacing(0);
+
+            ctx.fillStyle = C.ink;
+            ctx.font = font(20, 800);
+            ctx.fillText(modesData[currentLevel].modeName, 24, 54);
+
+            const maxQuoteWidth = 380;
             ctx.textAlign = 'center';
-            ctx.fillStyle = '#1a100a';
-            ctx.font = 'italic 24px "Book Antiqua", serif';
+            ctx.fillStyle = C.inkSoft;
+            ctx.font = font(14, 400, true);
             const quoteText = modesData[currentLevel].quote;
-            
+
             const lastDashIndex = quoteText.lastIndexOf(' - ');
             const quoteBody = quoteText.substring(0, lastDashIndex);
             const author = quoteText.substring(lastDashIndex + 3);
-            
+
             const words = quoteBody.split(' ');
             let lines = [];
             let currentLine = '';
@@ -2060,73 +2132,70 @@ if (!boss.active) {
                 }
             }
             if (currentLine) lines.push(currentLine);
-            
-            const lineHeight = 18;
-            const totalHeight = lines.length * lineHeight + 20;
-            let startY = 22 + (70 - totalHeight) / 2;
+
+            let startY = 32;
             for (let line of lines) {
-                ctx.fillText(line, canvas.width / 2, startY);
-                startY += lineHeight;
+                ctx.fillText(line, W / 2, startY);
+                startY += 18;
             }
-            ctx.font = 'italic 21px "Book Antiqua", serif';
-            ctx.fillText('- ' + author, canvas.width / 2, startY + 5);
+            ctx.fillStyle = C.soft;
+            ctx.font = font(11, 500);
+            ctx.fillText(author, W / 2, startY + 1);
 
             ctx.textAlign = 'right';
             const mins = Math.floor(levelTime / 60), secs = Math.floor(levelTime % 60);
-            ctx.fillStyle = '#1a100a';
-            ctx.font = 'bold 28px "Book Antiqua", serif';
-            ctx.fillText(mins + ':' + secs.toString().padStart(2, '0'), canvas.width - 28, 35);
-            
-            ctx.fillStyle = '#1a100a';
-            ctx.font = 'bold 22px "Book Antiqua", serif';
-            ctx.fillText('Puncta: ' + player.score, canvas.width - 28, 58);
+            ctx.fillStyle = C.ink;
+            ctx.font = font(22, 800);
+            ctx.fillText(mins + ':' + secs.toString().padStart(2, '0'), W - 24, 38);
 
-            ctx.textAlign = 'right';
-            let statusY = 85;
-            if (player.tempusTimer > 0) { ctx.fillStyle = '#1a100a'; ctx.font = 'bold 22px "Book Antiqua", serif'; ctx.fillText('Tempus Perfectum!', canvas.width - 28, statusY); statusY += 25; }
-            if (player.allaBreveTimer > 0) { ctx.fillStyle = '#00008b'; ctx.font = 'bold 22px "Book Antiqua", serif'; ctx.fillText('Proportio Dupla!', canvas.width - 28, statusY); statusY += 25; }
-            if (player.colorationTimer > 0) { ctx.fillStyle = '#1a100a'; ctx.font = 'bold 22px "Book Antiqua", serif'; ctx.fillText('Coloratio!', canvas.width - 28, statusY); statusY += 25; }
-            if (currentLevelData.hasFuga && player.history.length === 60) { ctx.fillStyle = '#cc0000'; ctx.font = 'bold 20px "Book Antiqua", serif'; ctx.fillText('Fuga: Canon pursues!', canvas.width - 28, statusY); statusY += 25; }
-            if (boss.active) { 
-                // Existing warning
-                ctx.fillStyle = '#8b0000'; 
-                ctx.font = 'bold 22px "Book Antiqua", serif'; 
-                ctx.fillText('CAVE DIABOLUM!', canvas.width - 28, statusY); 
-                
-                // New blinking shoot instruction
+            ctx.fillStyle = C.soft;
+            ctx.font = font(13, 600);
+            ctx.fillText('Puncta: ' + player.score, W - 24, 58);
+
+            let statusY = 70;
+            if (player.tempusTimer > 0) statusY = drawStatusPill('Tempus Perfectum!', C.ink, statusY);
+            if (player.allaBreveTimer > 0) statusY = drawStatusPill('Proportio Dupla!', C.blue, statusY);
+            if (player.colorationTimer > 0) statusY = drawStatusPill('Coloratio!', C.mark, statusY);
+            if (currentLevelData.hasFuga && player.history.length === 60) statusY = drawStatusPill('Fuga: Canon pursues!', C.red, statusY);
+            if (boss.active) {
+                statusY = drawStatusPill('CAVE DIABOLUM!', C.red, statusY);
+
+                // Blinking shoot instruction
                 ctx.textAlign = 'center';
-                ctx.font = 'bold 36px "Book Antiqua", serif';
-                if (Math.floor(Date.now() / 400) % 2 === 0) { // Blinks every 400ms
-                    ctx.fillText(isTouchDevice ? 'SHOOT!' : 'SHOOT WITH SPACEBAR!', canvas.width / 2, 120);
+                ctx.fillStyle = C.red;
+                ctx.font = font(26, 800); spacing(2);
+                if (Math.floor(Date.now() / 400) % 2 === 0) {
+                    ctx.fillText(isTouchDevice ? 'SHOOT!' : 'SHOOT WITH SPACEBAR!', W / 2, 120);
                 }
+                spacing(0);
             }
 
             if (!isTouchDevice) {
-                ctx.fillStyle = '#1a100a';
-                ctx.font = '14px "Book Antiqua", serif';
+                ctx.fillStyle = C.soft;
+                ctx.font = font(11, 500);
                 ctx.textAlign = 'center';
-                ctx.fillText('< > = Run/Sprint | ^ = Jump | SPACE = Shoot | ESC = Pause', canvas.width / 2, canvas.height - 8);
+                ctx.fillText('< > = Run/Sprint | ^ = Jump | SPACE = Shoot | ESC = Pause', W / 2, H - 18);
+            }
             }
         }
 
         if (gameState === 'DEATH_FREEZE') {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+            veil(0.8);
+
             ctx.textAlign = 'center';
-            ctx.fillStyle = '#ff1111'; 
-            ctx.font = 'bold 56px "Book Antiqua", serif';
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = '#1a100a';
-            ctx.strokeText('CANTUS INTERRUPTUS', canvas.width / 2, canvas.height / 2 + 10);
-            ctx.fillText('CANTUS INTERRUPTUS', canvas.width / 2, canvas.height / 2 + 10);
-            
-            ctx.fillStyle = '#d4c3a3'; 
-            ctx.font = 'bold 18px serif'; 
-            ctx.fillText('Press any key or tap to continue', canvas.width / 2, canvas.height / 2 + 60);
-            
+            ctx.fillStyle = C.red;
+            ctx.font = font(44, 800); spacing(4);
+            ctx.fillText('CANTUS INTERRUPTUS', W / 2 + 2, H / 2 + 6);
+            spacing(0);
+
+            ctx.fillStyle = C.soft;
+            ctx.font = font(14, 600);
+            ctx.fillText('Press any key or tap to continue', W / 2, H / 2 + 48);
+
             if (gameMode === 'ENDLESS' || gameMode === 'GRADUS') {
-                ctx.fillText(`Spatium Ultimatum: ${endlessDistance}`, canvas.width / 2, canvas.height / 2 + 90);
+                ctx.fillStyle = C.ink;
+                ctx.font = font(15, 700);
+                ctx.fillText(`Spatium Ultimatum: ${endlessDistance}`, W / 2, H / 2 + 80);
             }
         }
 
@@ -2135,18 +2204,17 @@ if (!boss.active) {
         } else if (gameState === 'LEADERBOARD') {
             drawLeaderboard();
         } else if (gameState === 'INSTALL_PROMPT') {
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#f4ecd8';
+            veil(0.98);
+            ctx.fillStyle = C.ink;
             ctx.textAlign = 'center';
-            ctx.font = 'bold 32px "Book Antiqua", serif';
-            ctx.fillText('For optimal playing experience on iPhone,', canvas.width / 2, canvas.height / 2 - 30);
-            ctx.fillText('press the ••• button, press Share ', canvas.width / 2, canvas.height / 2 + 10);
-            ctx.fillText('and select "Add to Home Screen".', canvas.width / 2, canvas.height / 2 + 50);
-            
-            ctx.fillStyle = '#b8860b';
-            ctx.font = 'italic 18px "Book Antiqua", serif';
-            ctx.fillText('Tap anywhere to return', canvas.width / 2, canvas.height - 30);
+            ctx.font = font(22, 600);
+            ctx.fillText('For optimal playing experience on iPhone,', W / 2, H / 2 - 34);
+            ctx.fillText('press the ••• button, press Share ', W / 2, H / 2);
+            ctx.fillText('and select "Add to Home Screen".', W / 2, H / 2 + 34);
+
+            ctx.fillStyle = C.mark;
+            ctx.font = font(13, 600);
+            ctx.fillText('Tap anywhere to return', W / 2, H - 30);
         }
     }
 
