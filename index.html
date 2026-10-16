@@ -60,6 +60,8 @@
             justify-content: center;
             align-items: center;
             aspect-ratio: 2 / 1;
+            max-width: calc((100vh - 24px) * 2);
+            max-width: calc((100dvh - 24px) * 2);
         }
 
         canvas {
@@ -109,24 +111,40 @@
         .html-btn:active { background: var(--band); }
         #fsBtn { position: absolute; top: 12px; left: 12px; z-index: 20; }
 
-        /* Draggable Shoot Button */
-        #tShootDraggable {
-            position: absolute;
-            right: 15%;
-            top: 35%;
-            width: 64px; height: 64px;
-            border-radius: 50%;
-            background: rgba(255, 253, 248, 0.55);
-            border: 1.5px solid rgba(156, 107, 60, 0.45);
-            color: var(--mark);
-            font-size: 22px; font-weight: 700;
-            display: none; justify-content: center; align-items: center;
-            user-select: none; -webkit-user-select: none;
-            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-            box-shadow: 0 4px 14px rgba(59, 49, 37, 0.08);
-            z-index: 35;
+        /* On-screen controls, shown only on touch devices */
+        #pad {
+            --b: min(66px, 17vh, calc((100vw - 80px) / 4.3));
+            position: fixed; left: 0; right: 0; bottom: 0; z-index: 34;
+            display: none; justify-content: space-between; align-items: flex-end;
+            padding: 0 max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+            pointer-events: none;
         }
-        #tShootDraggable:active { background: var(--mark); color: var(--paper); }
+        #pad.show { display: flex; }
+        .pad-cluster { display: flex; align-items: flex-end; gap: 12px; }
+        .pad-dir { display: grid; grid-template-columns: var(--b) var(--b); gap: 12px; }
+        .pad-dir .pad-btn[data-k="down"] { grid-column: 1 / span 2; justify-self: center; width: calc(var(--b) * 0.8); height: calc(var(--b) * 0.8); }
+        .pad-btn {
+            pointer-events: auto;
+            width: var(--b); height: var(--b); border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            background: rgba(255, 253, 248, 0.42);
+            border: 1.5px solid rgba(156, 107, 60, 0.5);
+            color: var(--mark); font-family: inherit; font-size: calc(var(--b) * 0.36); font-weight: 700; line-height: 1;
+            box-shadow: 0 4px 14px rgba(59, 49, 37, 0.08);
+            user-select: none; -webkit-user-select: none;
+        }
+        .pad-btn.on { background: var(--mark); color: var(--paper); border-color: var(--mark); }
+        .pad-btn[data-k="jump"] { width: calc(var(--b) * 1.2); height: calc(var(--b) * 1.2); }
+        .pad-btn[data-k="shoot"] { margin-bottom: calc(var(--b) * 0.75); }
+        #pad:not(.kart) .pad-btn[data-k="down"] { display: none; }
+        @media (orientation: portrait) { #pad { --b: min(78px, calc((100vw - 80px) / 4.3)); padding-bottom: max(28px, env(safe-area-inset-bottom)); } }
+        @media (max-height: 500px) and (orientation: landscape) {
+            .menu-box { padding: 16px 20px; }
+            .menu-box h2 { margin-bottom: 10px; }
+            .slider-container { margin: 8px 0; }
+            .menu-box hr { margin: 10px 0; }
+        }
+        body.no-fs #fsBtn { display: none !important; }
 
         #tPause {
             position: fixed; top: 10px; right: 10px; width: 44px; height: 44px;
@@ -136,12 +154,6 @@
             box-shadow: 0 4px 14px rgba(59, 49, 37, 0.08);
         }
 
-        #touchZonesOverlay .zone {
-            position: absolute; top: 0; height: 100%;
-            display: flex; align-items: center; justify-content: center;
-            color: rgba(156, 107, 60, 0.45); font-size: 14px; font-weight: 600; letter-spacing: 2px;
-        }
-        #touchZonesOverlay .zone + .zone { border-left: 1px dashed rgba(156, 107, 60, 0.25); }
 
         @media (orientation: portrait) {
             body { justify-content: flex-start; }
@@ -246,13 +258,17 @@
     </div>
 </div>
 
-<div id="touchZonesOverlay" style="display:none; pointer-events:none; position:fixed; left:0; top:0; width:100vw; height:0; z-index:4;">
-    <div class="zone" style="left:0; width:18%;">◀</div>
-    <div class="zone" style="left:18%; width:27%;">▶</div>
-    <div class="zone" style="left:45%; width:55%;">▲ JUMP</div>
+<div id="pad" aria-hidden="true">
+    <div class="pad-cluster pad-dir">
+        <div class="pad-btn" data-k="down">▼</div>
+        <div class="pad-btn" data-k="left">◀</div>
+        <div class="pad-btn" data-k="right">▶</div>
+    </div>
+    <div class="pad-cluster">
+        <div class="pad-btn" data-k="shoot">●</div>
+        <div class="pad-btn" data-k="jump">▲</div>
+    </div>
 </div>
-
-<div id="tShootDraggable">●</div>
 
 <button type="button" id="titleDevBtn" aria-label="Developer mode">DEV</button>
 
@@ -345,8 +361,9 @@
     canvas.width = W * DPR; canvas.height = H * DPR;
     
     const pauseOverlay = document.getElementById('pauseOverlay');
-    const touchZonesOverlay = document.getElementById('touchZonesOverlay');
-    const shootBtn = document.getElementById('tShootDraggable');
+    const pad = document.getElementById('pad');
+    const padBtns = [...pad.querySelectorAll('.pad-btn')];
+    if (!document.fullscreenEnabled && !document.webkitFullscreenEnabled) document.body.classList.add('no-fs');
     const tPause = document.getElementById('tPause');
     const canvasContainer = document.getElementById('canvasContainer');
     const titleDevBtn = document.getElementById('titleDevBtn');
@@ -463,7 +480,7 @@ let devInvincible = false;
     }
 
     let audioCtx; let musicTimeout; let melodyIndex = 0; let audioUnlocked = false; let isMuted = false;
-    let isTouchDevice = false;
+    let isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 
     // --- Difficulty / Global Speed Settings ---
     const speedSettings = [
@@ -599,6 +616,15 @@ let devInvincible = false;
     }
     function spacing(px) { if ('letterSpacing' in ctx) ctx.letterSpacing = px + 'px'; }
     function inRect(x, y, r) { return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; }
+    function nearestRect(x, y, rects, slop) {
+        let best = null, bestD = Infinity;
+        for (const r of rects) {
+            const dx = Math.max(r.x - x, 0, x - (r.x + r.w)), dy = Math.max(r.y - y, 0, y - (r.y + r.h));
+            const d = Math.hypot(dx, dy);
+            if (d <= slop && d < bestD) { bestD = d; best = r; }
+        }
+        return best;
+    }
     function rgba(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`; }
 
     function pill(x, y, w, h, fill, stroke, r = h / 2) {
@@ -1403,6 +1429,7 @@ let devInvincible = false;
     
     function togglePause() {
         if (gameState !== 'PLAY' && gameState !== 'PAUSE') return;
+        releaseAllKeys();
         if (gameState === 'PAUSE') {
             gameState = previousState;
             pauseOverlay.style.display = 'none';
@@ -1432,16 +1459,28 @@ let devInvincible = false;
         }
     }
 
+    function releaseAllKeys() {
+        if (keys.left) releaseLeft();
+        if (keys.right) releaseRight();
+        if (keys.up) releaseJump();
+        if (keys.space) releaseShoot();
+        keys.down = false;
+        padBtns.forEach(b => b.classList.remove('on'));
+    }
+
+    // Show the on-screen pad while playing (and on the level card before it, so the layout doesn't jump)
     function syncTouchGameChrome() {
-        if (!isTouchDevice) return;
-        const playLike = gameState === 'PLAY';
-        touchZonesOverlay.style.display = playLike ? 'block' : 'none';
-        tPause.style.display = playLike ? 'flex' : 'none';
-        shootBtn.style.display = playLike ? 'flex' : 'none';
+        const playLike = isTouchDevice && (gameState === 'PLAY' || gameState === 'SPLASH');
+        if (pad.classList.contains('show') !== playLike) pad.classList.toggle('show', playLike);
+        pad.classList.toggle('kart', gameMode === 'KART');
+        const pauseShown = isTouchDevice && gameState === 'PLAY';
+        tPause.style.display = pauseShown ? 'flex' : 'none';
         if (playLike) updateMobileControlLayout();
     }
 
     window.addEventListener('keydown', (e) => {
+        // A keyboard on a tablet: hide the on-screen pad until the screen is touched again
+        if (isTouchDevice && !e.repeat && gameState === 'PLAY' && !e.target.closest?.('input')) { isTouchDevice = false; releaseAllKeys(); syncTouchGameChrome(); }
         if (e.code === 'Escape') {
             if (devOverlay.style.display === 'flex') { closeDevPanel(); return; }
             if (gameState === 'DEATH_FREEZE' || gameState === 'WIN') {
@@ -1530,36 +1569,30 @@ let devInvincible = false;
     });
     window.addEventListener('keyup', (e) => { if (e.code === 'ArrowRight' || e.code === 'KeyD') releaseRight(); if (e.code === 'ArrowLeft' || e.code === 'KeyA') releaseLeft(); if (e.code === 'ArrowUp' || e.code === 'KeyW') releaseJump(); if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = false; if (e.code === 'Space') releaseShoot(); });
 
-    // --- REIMAGINED TOUCH ZONES & LOGIC ---
-    let isDraggingShoot = false;
-    let mobileControlTop = 0;
+    // --- ON-SCREEN TOUCH CONTROLS ---
+    let mobileLayoutKey = '';
 
     function updateMobileControlLayout() {
-        if (!isTouchDevice || gameState !== 'PLAY') return;
+        if (!isTouchDevice) return;
         const rect = canvasContainer.getBoundingClientRect();
         const landscape = window.innerWidth > window.innerHeight;
-        const topPx = Math.max(0, Math.min(window.innerHeight - 80, rect.bottom));
-        mobileControlTop = topPx;
-        touchZonesOverlay.style.top = `${topPx}px`;
-        touchZonesOverlay.style.height = `${Math.max(0, window.innerHeight - topPx)}px`;
-        touchZonesOverlay.style.width = '100vw';
-        if (landscape) {
-            tPause.style.top = '10px';
-            tPause.style.right = '10px';
-        } else {
-            tPause.style.top = `${topPx + 10}px`;
-            tPause.style.right = '10px';
-        }
+        const key = `${window.innerWidth}x${window.innerHeight}:${Math.round(rect.bottom)}`;
+        if (key === mobileLayoutKey) return;
+        mobileLayoutKey = key;
+        tPause.style.right = '10px';
+        tPause.style.top = landscape ? '10px' : `${Math.round(rect.bottom) + 10}px`;
     }
 
-    window.addEventListener('touchstart', () => { 
-        if (!isTouchDevice) { 
+    window.addEventListener('touchstart', () => {
+        if (!isTouchDevice) {
             isTouchDevice = true;
             syncTouchGameChrome();
-        } 
-        unlockAudio(); 
-    }, { once: true });
-    window.addEventListener('resize', updateMobileControlLayout);
+        }
+        unlockAudio();
+    }, { capture: true });
+    window.addEventListener('resize', () => { mobileLayoutKey = ''; updateMobileControlLayout(); });
+    window.addEventListener('blur', releaseAllKeys);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { releaseAllKeys(); if (gameState === 'PLAY') togglePause(); } });
     
     // --- Mobile Name Input Overlay ---
     function showMobileNameInput() {
@@ -1658,40 +1691,34 @@ let devInvincible = false;
         }
         
         if (gameState !== 'PLAY') return;
+        if (e.target.closest && e.target.closest('#tPause')) return;
         e.preventDefault();
-        
-        let touches = e.touches;
-        let nowLeft = false, nowRight = false, nowJump = false, nowShoot = false;
-        
-        for(let i=0; i<touches.length; i++) {
-            let x = touches[i].clientX;
-            let y = touches[i].clientY;
-            let w = window.innerWidth;
-            let target = document.elementFromPoint(x, y);
-            if (target && (target.id === 'tPause' || target.closest && target.closest('#tPause'))) continue;
-            if (target && (target.id === 'tShootDraggable' || target.closest && target.closest('#tShootDraggable'))) {
-                nowShoot = true;
-                continue;
-            }
-            // Height restriction removed so zones extend to the top of the screen!
-            
-            // New touch boundaries (18% and 45%)
-            if (x < w * 0.18) nowLeft = true;
-            else if (x < w * 0.45) nowRight = true;
-            else nowJump = true;
-        }
-        
-        if (nowLeft && !keys.left) pressLeft();
-        if (!nowLeft && keys.left) releaseLeft();
-        
-        if (nowRight && !keys.right) pressRight();
-        if (!nowRight && keys.right) releaseRight();
-        
-        if (nowJump && !keys.up) pressJump();
-        if (!nowJump && keys.up) releaseJump();
 
-        if (nowShoot && !keys.space) pressShoot();
-        if (!nowShoot && keys.space) releaseShoot();
+        // Every finger on the screen picks the nearest button it is on (with some slop), so thumbs can slide between them
+        const slop = 14;
+        const rects = padBtns.filter(b => b.offsetParent !== null).map(b => ({ k: b.dataset.k, r: b.getBoundingClientRect() }));
+        const held = new Set();
+        for (const t of e.touches) {
+            let best = null, bestD = Infinity;
+            for (const { k, r } of rects) {
+                if (t.clientX < r.left - slop || t.clientX > r.right + slop || t.clientY < r.top - slop || t.clientY > r.bottom + slop) continue;
+                const d = Math.hypot(t.clientX - (r.left + r.right) / 2, t.clientY - (r.top + r.bottom) / 2);
+                if (d < bestD) { bestD = d; best = k; }
+            }
+            if (best) held.add(best);
+        }
+        setPadKey('left', held.has('left'), pressLeft, releaseLeft, keys.left);
+        setPadKey('right', held.has('right'), pressRight, releaseRight, keys.right);
+        setPadKey('jump', held.has('jump'), pressJump, releaseJump, keys.up);
+        setPadKey('shoot', held.has('shoot'), pressShoot, releaseShoot, keys.space);
+        setPadKey('down', held.has('down'), () => { keys.down = true; }, () => { keys.down = false; }, keys.down);
+    }
+
+    function setPadKey(k, now, press, release, was) {
+        if (now && !was) press();
+        else if (!now && was) release();
+        const b = padBtns.find(b => b.dataset.k === k);
+        if (b.classList.contains('on') !== now) b.classList.toggle('on', now);
     }
 
     window.addEventListener('touchstart', handleTouchZones, {passive: false});
@@ -1699,8 +1726,17 @@ let devInvincible = false;
     window.addEventListener('touchend', handleTouchZones, {passive: false});
     window.addEventListener('touchcancel', handleTouchZones, {passive: false});
     
+    // Taps that move the game on: only a finger put down after the moment (not one still held from play) counts
+    let tapArmed = false;
+    window.addEventListener('touchstart', (e) => {
+        tapArmed = gameState === 'DEATH_FREEZE' || gameState === 'WIN';
+        if (gameState === 'SPLASH' && e.target !== canvas && !e.target.closest('.overlay')) advanceSplash();
+    }, { passive: true });
     window.addEventListener('touchend', (e) => {
-        if (gameState === 'DEATH_FREEZE') {
+        if (!tapArmed || e.touches.length) return;
+        tapArmed = false;
+        if (gameState === 'WIN') { e.preventDefault(); gameState = 'MENU'; }
+        else if (gameState === 'DEATH_FREEZE') {
             e.preventDefault();
             if (gameMode === 'ENDLESS') {
                 gameState = 'NAME_INPUT';
@@ -1712,24 +1748,7 @@ let devInvincible = false;
         }
     }, { passive: false });
 
-    const shootBtnNode = document.getElementById('tShootDraggable');
-    shootBtnNode.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        isDraggingShoot = true;
-    }, { passive: false });
-    window.addEventListener('touchmove', (e) => {
-        if (isDraggingShoot) {
-            e.preventDefault();
-            let touch = e.touches[0];
-            let nx = touch.clientX - shootBtnNode.offsetWidth/2;
-            let ny = touch.clientY - shootBtnNode.offsetHeight/2;
-            shootBtnNode.style.left = nx + 'px';
-            shootBtnNode.style.top = ny + 'px';
-        }
-    }, { passive: false });
-    window.addEventListener('touchend', (e) => { if (isDraggingShoot) { e.preventDefault(); isDraggingShoot = false; } }, { passive: false });
-
-    document.getElementById('tPause').addEventListener('touchstart', (e) => { e.preventDefault(); togglePause(); });
+    tPause.addEventListener('touchstart', (e) => { e.preventDefault(); togglePause(); }, { passive: false });
 
     canvas.addEventListener('pointermove', (e) => {
         if (gameState !== 'MENU' || e.pointerType === 'touch') { if (menuHover !== -1) { menuHover = -1; canvas.style.cursor = ''; } return; }
@@ -1756,17 +1775,19 @@ let devInvincible = false;
             const rect = canvas.getBoundingClientRect(); 
             const y = (e.clientY - rect.top) / (rect.height / H);
             const x = (e.clientX - rect.left) / (rect.width / W);
+            // Fingers are blunt: on touch, take the nearest button within a margin
+            const slop = e.pointerType === 'touch' ? Math.max(6, 18 * W / rect.width) : 0;
+            const hit = nearestRect(x, y, [INSTALL_BTN, THEME_BTN, ...MENU_BTNS], slop);
             
             // Check if "Install" button was clicked
-            if (inRect(x, y, INSTALL_BTN)) {
+            if (hit === INSTALL_BTN) {
                 gameState = 'INSTALL_PROMPT';
                 return;
             }
-            if (inRect(x, y, THEME_BTN)) { cycleTheme(); return; }
+            if (hit === THEME_BTN) { cycleTheme(); return; }
 
-            const picked = MENU_BTNS.find(b => inRect(x, y, b));
-            if (picked) picked.action();
-        } else if (gameState === 'DEATH_FREEZE' || gameState === 'WIN') {
+            if (hit) hit.action();
+        } else if ((gameState === 'DEATH_FREEZE' || gameState === 'WIN') && e.pointerType !== 'touch') {
             if (gameState === 'WIN') {
                 gameState = 'MENU';
             } else if (gameMode === 'ENDLESS') {
@@ -2478,18 +2499,7 @@ let devInvincible = false;
         ctx.textBaseline = 'alphabetic';
 
         titleDevBtn.style.display = (gameState === 'MENU') ? 'block' : 'none';
-        if (isTouchDevice) {
-            if (gameState === 'PLAY') {
-                touchZonesOverlay.style.display = 'block';
-                tPause.style.display = 'flex';
-                shootBtn.style.display = 'flex';
-                updateMobileControlLayout();
-            } else {
-                touchZonesOverlay.style.display = 'none';
-                tPause.style.display = 'none';
-                shootBtn.style.display = 'none';
-            }
-        }
+        syncTouchGameChrome();
 
         if (gameState === 'MENU' || gameState === 'OPTIONS') { drawMenu(); return; }
         if (gameMode === 'KART' && kart && ['PLAY', 'SPLASH', 'WIN', 'PAUSE'].includes(gameState)) { kartDraw(); return; }
@@ -2679,7 +2689,7 @@ let devInvincible = false;
 
                     if (isTouchDevice) {
                         ctx.font = font(32, 800);
-                        ctx.fillText('Controls down below', W / 2, 124);
+                        ctx.fillText(window.innerWidth > window.innerHeight ? 'Controls in the corners' : 'Controls down below', W / 2, 124);
                         ctx.font = font(26, 700);
                         ctx.fillText('↓', W / 2, 156);
                         ctx.font = font(16, 500, true);
@@ -3305,7 +3315,7 @@ let devInvincible = false;
         } else if (kart.count <= 0 && kart.t < 0.9 && !kart.done) {
             ctx.fillStyle = C.ink; ctx.font = font(56, 800, false, 'display'); ctx.fillText('Incipite!', W / 2, 180);
         }
-        if (kart.count > 0) { ctx.fillStyle = C.soft; ctx.font = font(13, 500, true); ctx.fillText(isTouchDevice ? 'Hold the middle as I falls for a fast start' : 'Hold ↑ as I falls for a fast start', W / 2, 220); }
+        if (kart.count > 0) { ctx.fillStyle = C.soft; ctx.font = font(13, 500, true); ctx.fillText(isTouchDevice ? 'Hold ▲ as I falls for a fast start' : 'Hold ↑ as I falls for a fast start', W / 2, 220); }
         if (kart.banner > 0) { ctx.fillStyle = C.red; ctx.font = font(30, 700, true, 'display'); ctx.fillText('Circuitus ultimus', W / 2, 150); }
         if (kart.done && gameState !== 'WIN') { ctx.fillStyle = C.red; ctx.font = font(60, 800, false, 'display'); ctx.fillText(place === 1 ? 'Victoria!' : 'Finis', W / 2, 180); }
         if (gameState === 'WIN') kartResults(order);
@@ -3318,7 +3328,7 @@ let devInvincible = false;
         ctx.fillStyle = C.ink; ctx.font = font(42, 800, false, 'display'); ctx.fillText('Circus Maximus', W / 2, 142);
         ctx.fillStyle = C.line; ctx.fillRect(W / 2 - 24, 166, 48, 2);
         ctx.fillStyle = C.inkSoft; ctx.font = font(17, 400, true);
-        if (isTouchDevice) { ctx.fillText('Left edge and left of middle steer. Hold the right side to hop and drift.', W / 2, 206); ctx.fillText('The round button throws your item.', W / 2, 230); }
+        if (isTouchDevice) { ctx.fillText('◀ ▶ steer   ·   ▲ hop and drift   ·   ▼ brake   ·   ● item', W / 2, 206); ctx.fillText('Hold a drift through a bend, then let go for a burst of speed.', W / 2, 230); }
         else { ctx.fillText('← → steer   ·   ↑ hop and drift   ·   ↓ brake   ·   Space item', W / 2, 206); ctx.fillText('Hold a drift through a bend, then let go for a burst of speed.', W / 2, 230); }
         ctx.fillStyle = C.soft; ctx.font = font(13, 500); ctx.fillText('Three circuits against five rivals', W / 2, 258);
         ctx.fillStyle = C.mark; ctx.font = font(14, 600); ctx.fillText('Press any key or tap to continue', W / 2, H - 40);
