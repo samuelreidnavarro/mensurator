@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>MENSURATOR</title>
+    <!-- Opened from the Home Screen, the game runs without any browser bars -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mensurator">
+    <meta name="theme-color" content="#efe6d3">
+    <link rel="apple-touch-icon" href="mensurator-icon.png">
+    <link rel="manifest" href="mensurator.webmanifest">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Noto+Music&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=IM+Fell+Double+Pica&family=Grenze+Gotisch:wght@400;500;600;700&display=swap">
@@ -350,7 +358,7 @@
     function isFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
     function fsLabel() { return isFullscreen() ? 'Exit full screen' : 'Full screen'; }
     function toggleFullscreen() {
-        if (!fsApi) { if (inFrame) window.top.location.href = location.href.split('?')[0]; return; }
+        if (!fsApi) { if (inFrame) window.top.location.href = location.href.split(/[?#]/)[0] + '#install'; return; }
         const elem = document.documentElement;
         if (!isFullscreen()) {
             const req = elem.requestFullscreen ? elem.requestFullscreen({ navigationUI: 'hide' }) : elem.webkitRequestFullscreen();
@@ -1812,6 +1820,8 @@ let devInvincible = false;
             
             // Check if "Install" button was clicked
             if (hit === INSTALL_BTN) {
+                // Inside the site page, Home Screen would save the whole page: show the hint on the game's own page instead
+                if (inFrame) { window.top.location.href = location.href.split(/[?#]/)[0] + '#install'; return; }
                 gameState = 'INSTALL_PROMPT';
                 return;
             }
@@ -3420,6 +3430,7 @@ let devInvincible = false;
     let savedTheme = 'rubrica';
     try { savedTheme = localStorage.getItem('mensuratorTheme') || 'rubrica'; } catch (e) {}
     applyTheme(savedTheme);
+    if (location.hash === '#install') { gameState = 'INSTALL_PROMPT'; history.replaceState(null, '', location.pathname); }
     requestAnimationFrame(loop);
 </script>
 </body>
