@@ -109,7 +109,6 @@
         }
         .html-btn:hover { border-color: var(--mark); }
         .html-btn:active { background: var(--band); }
-        #fsBtn { position: absolute; top: 12px; left: 12px; z-index: 20; }
 
         /* On-screen controls, shown only on touch devices */
         #pad {
@@ -144,7 +143,7 @@
             .slider-container { margin: 8px 0; }
             .menu-box hr { margin: 10px 0; }
         }
-        body.no-fs #fsBtn { display: none !important; }
+        body.no-fs #fsPauseBtn { display: none; }
 
         #tPause {
             position: fixed; top: 10px; right: 10px; width: 44px; height: 44px;
@@ -252,7 +251,6 @@
 
 <div id="gameWrapper">
     <div id="canvasContainer">
-        <button id="fsBtn" class="html-btn" aria-label="Fullscreen">⛶</button>
         <canvas id="gameCanvas" width="800" height="400"></canvas>
         <div id="tPause">II</div>
     </div>
@@ -295,6 +293,7 @@
 
         <button class="menu-btn block" onclick="togglePause()">Resume</button>
         <button class="menu-btn ghost block" onclick="quitToMenu()">Quit to Title</button>
+        <button class="menu-btn ghost block" id="fsPauseBtn" onclick="toggleFullscreen()">Full screen</button>
 
         <hr>
 
@@ -342,16 +341,29 @@
     </div>
 </div>
 <script>
-    document.getElementById('fsBtn').addEventListener('click', () => {
-        let elem = document.documentElement;
-        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-            if (elem.requestFullscreen) elem.requestFullscreen();
-            else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+    // --- FULL SCREEN ---
+    // iPhone Safari has no Fullscreen API: inside the site page, the button opens the game on its own page instead
+    const fsApi = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+    const inFrame = (() => { try { return window.self !== window.top && !!window.top.location.href; } catch (e) { return false; } })();
+    const standaloneApp = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone === true;
+    const fsAvailable = !standaloneApp && (fsApi || inFrame);
+    function isFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+    function fsLabel() { return isFullscreen() ? 'Exit full screen' : 'Full screen'; }
+    function toggleFullscreen() {
+        if (!fsApi) { if (inFrame) window.top.location.href = location.href.split('?')[0]; return; }
+        const elem = document.documentElement;
+        if (!isFullscreen()) {
+            const req = elem.requestFullscreen ? elem.requestFullscreen({ navigationUI: 'hide' }) : elem.webkitRequestFullscreen();
+            // Phones play best sideways; where the browser allows it, hold landscape while in full screen
+            Promise.resolve(req).then(() => { if (isTouchDevice && screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape'); }).catch(() => {});
         } else {
             if (document.exitFullscreen) document.exitFullscreen();
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         }
-    });
+    }
+    function syncFsLabels() { const b = document.getElementById('fsPauseBtn'); if (b) b.textContent = fsLabel(); }
+    document.addEventListener('fullscreenchange', syncFsLabels);
+    document.addEventListener('webkitfullscreenchange', syncFsLabels);
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -363,7 +375,7 @@
     const pauseOverlay = document.getElementById('pauseOverlay');
     const pad = document.getElementById('pad');
     const padBtns = [...pad.querySelectorAll('.pad-btn')];
-    if (!document.fullscreenEnabled && !document.webkitFullscreenEnabled) document.body.classList.add('no-fs');
+    if (!fsAvailable) document.body.classList.add('no-fs');
     const tPause = document.getElementById('tPause');
     const canvasContainer = document.getElementById('canvasContainer');
     const titleDevBtn = document.getElementById('titleDevBtn');
@@ -649,6 +661,7 @@ let devInvincible = false;
     let MENU_BTNS = MODERN_MENU;
     const INSTALL_BTN = { x: 696, y: 16, w: 88, h: 30 };
     const THEME_BTN = { x: 584, y: 16, w: 104, h: 30 };
+    const FS_BTN = { x: 0, y: 16, w: 0, h: 30 };
     const LB_SWITCH_BTN = { x: 10, y: 10, w: 160, h: 30 };
     const LB_CLOSE_BTN = { x: 760, y: 10, w: 30, h: 30 };
     let menuHover = -1;
@@ -1466,6 +1479,7 @@ let devInvincible = false;
         if (keys.space) releaseShoot();
         keys.down = false;
         padBtns.forEach(b => b.classList.remove('on'));
+        padFingers.clear();
     }
 
     // Show the on-screen pad while playing (and on the level card before it, so the layout doesn't jump)
@@ -1547,6 +1561,7 @@ let devInvincible = false;
             if (e.code === 'KeyM') { isMuted = !isMuted; if (isMuted && musicTimeout) clearTimeout(musicTimeout); return; }
             if (e.code === 'KeyL') { gameState = 'LEADERBOARD'; loadLeaderboard(); return; }
             if (e.code === 'KeyT') { cycleTheme(); return; }
+            if (e.code === 'KeyF' && fsAvailable) { toggleFullscreen(); return; }
             if (!e.repeat) {
                 if (e.key === '1') { gameMode = 'CLASSIC'; currentLevel = 0; startGame(); }
                 else if (e.key === '2') { gameMode = 'ENDLESS'; currentLevel = 0; startGame(); }
@@ -1690,22 +1705,35 @@ let devInvincible = false;
             return;
         }
         
+        for (const id of [...padFingers.keys()]) if (![...e.touches].some(t => t.identifier === id)) padFingers.delete(id);
         if (gameState !== 'PLAY') return;
         if (e.target.closest && e.target.closest('#tPause')) return;
         e.preventDefault();
 
-        // Every finger on the screen picks the nearest button it is on (with some slop), so thumbs can slide between them
-        const slop = 14;
-        const rects = padBtns.filter(b => b.offsetParent !== null).map(b => ({ k: b.dataset.k, r: b.getBoundingClientRect() }));
+        // A finger that lands on (or near) a button keeps its side of the pad until it lifts:
+        // the left thumb always steers with whichever of ◀ ▶ (▼) is nearest, the right thumb always jumps or shoots,
+        // so a thumb that drifts off the button while playing is never dropped
+        const rects = padBtns.filter(b => b.offsetParent !== null).map(b => { const r = b.getBoundingClientRect(); return { k: b.dataset.k, r, cx: (r.left + r.right) / 2, cy: (r.top + r.bottom) / 2 }; });
+        const nearest = (t, list, slop) => {
+            let best = null, bestD = Infinity;
+            for (const b of list) {
+                if (slop != null && (t.clientX < b.r.left - slop || t.clientX > b.r.right + slop || t.clientY < b.r.top - slop || t.clientY > b.r.bottom + slop)) continue;
+                const d = Math.hypot(t.clientX - b.cx, t.clientY - b.cy);
+                if (d < bestD) { bestD = d; best = b.k; }
+            }
+            return best;
+        };
         const held = new Set();
         for (const t of e.touches) {
-            let best = null, bestD = Infinity;
-            for (const { k, r } of rects) {
-                if (t.clientX < r.left - slop || t.clientX > r.right + slop || t.clientY < r.top - slop || t.clientY > r.bottom + slop) continue;
-                const d = Math.hypot(t.clientX - (r.left + r.right) / 2, t.clientY - (r.top + r.bottom) / 2);
-                if (d < bestD) { bestD = d; best = k; }
+            let side = padFingers.get(t.identifier);
+            if (!side) {
+                const k = nearest(t, rects, 24);
+                side = k ? (PAD_DIR.includes(k) ? 'dir' : 'act') : null;
+                if (side) padFingers.set(t.identifier, side);
             }
-            if (best) held.add(best);
+            if (!side) continue;
+            const k = nearest(t, rects.filter(b => (side === 'dir') === PAD_DIR.includes(b.k)));
+            if (k) held.add(k);
         }
         setPadKey('left', held.has('left'), pressLeft, releaseLeft, keys.left);
         setPadKey('right', held.has('right'), pressRight, releaseRight, keys.right);
@@ -1713,6 +1741,9 @@ let devInvincible = false;
         setPadKey('shoot', held.has('shoot'), pressShoot, releaseShoot, keys.space);
         setPadKey('down', held.has('down'), () => { keys.down = true; }, () => { keys.down = false; }, keys.down);
     }
+
+    const PAD_DIR = ['left', 'right', 'down'];
+    const padFingers = new Map(); // touch id -> 'dir' or 'act'
 
     function setPadKey(k, now, press, release, was) {
         if (now && !was) press();
@@ -1756,7 +1787,7 @@ let devInvincible = false;
         const x = (e.clientX - rect.left) / (rect.width / W);
         const y = (e.clientY - rect.top) / (rect.height / H);
         menuHover = MENU_BTNS.findIndex(b => inRect(x, y, b));
-        canvas.style.cursor = (menuHover !== -1 || inRect(x, y, INSTALL_BTN) || inRect(x, y, THEME_BTN)) ? 'pointer' : '';
+        canvas.style.cursor = (menuHover !== -1 || inRect(x, y, INSTALL_BTN) || inRect(x, y, THEME_BTN) || (FS_BTN.w && inRect(x, y, FS_BTN))) ? 'pointer' : '';
     });
     canvas.addEventListener('pointerleave', () => { menuHover = -1; canvas.style.cursor = ''; });
 
@@ -1777,7 +1808,7 @@ let devInvincible = false;
             const x = (e.clientX - rect.left) / (rect.width / W);
             // Fingers are blunt: on touch, take the nearest button within a margin
             const slop = e.pointerType === 'touch' ? Math.max(6, 18 * W / rect.width) : 0;
-            const hit = nearestRect(x, y, [INSTALL_BTN, THEME_BTN, ...MENU_BTNS], slop);
+            const hit = nearestRect(x, y, [INSTALL_BTN, THEME_BTN, ...(FS_BTN.w ? [FS_BTN] : []), ...MENU_BTNS], slop);
             
             // Check if "Install" button was clicked
             if (hit === INSTALL_BTN) {
@@ -1785,6 +1816,7 @@ let devInvincible = false;
                 return;
             }
             if (hit === THEME_BTN) { cycleTheme(); return; }
+            if (hit === FS_BTN) { toggleFullscreen(); return; }
 
             if (hit) hit.action();
         } else if ((gameState === 'DEATH_FREEZE' || gameState === 'WIN') && e.pointerType !== 'touch') {
@@ -1825,7 +1857,6 @@ let devInvincible = false;
     });
 
     function startGame() {
-        document.getElementById('fsBtn').style.display = 'none';
         unlockAudio(); 
         previousState = 'PLAY';
         if (gameMode === 'KART') { kartStart(); return; }
@@ -1994,7 +2025,7 @@ let devInvincible = false;
 
         for (let i = projectiles.length - 1; i >= 0; i--) {
             let p = projectiles[i]; p.x += p.vx * speedMult; let hit = false;
-            if (boss.active && boss.hp > 0 && checkCollision({x:p.x, y:p.y, w:8, h:8}, {x: boss.x-20, y: boss.y, w: 80, h: 80})) { boss.hp--; hit = true; playSound('bossHit'); spawnBlood(boss.x, boss.y + 20); if (boss.hp <= 0) { boss.active = false; player.score += 50; gameState = 'NAME_INPUT'; inputName = ''; if (musicTimeout) clearTimeout(musicTimeout); document.getElementById('fsBtn').style.display = 'block'; if (isTouchDevice) showMobileNameInput(); return; } }
+            if (boss.active && boss.hp > 0 && checkCollision({x:p.x, y:p.y, w:8, h:8}, {x: boss.x-20, y: boss.y, w: 80, h: 80})) { boss.hp--; hit = true; playSound('bossHit'); spawnBlood(boss.x, boss.y + 20); if (boss.hp <= 0) { boss.active = false; player.score += 50; gameState = 'NAME_INPUT'; inputName = ''; if (musicTimeout) clearTimeout(musicTimeout); if (isTouchDevice) showMobileNameInput(); return; } }
             let checkList = currentLevelData.enemies.concat(currentLevelData.jumpingFlats).concat(currentLevelData.flyingEnemies);
             checkList.forEach(e => { if (!e.dead && checkCollision({x:p.x, y:p.y, w:8, h:8}, e)) { e.dead = true; hit = true; playSound('smash'); spawnBlood(e.x, e.y); } });
             if (hit || p.x > cameraX + 900 || p.x < cameraX - 100) projectiles.splice(i, 1);
@@ -2214,7 +2245,7 @@ let devInvincible = false;
                     gameState = 'NAME_INPUT'; 
                     inputName = '';
                     if (musicTimeout) clearTimeout(musicTimeout); 
-                    document.getElementById('fsBtn').style.display = 'block'; 
+                    
                     if (isTouchDevice) showMobileNameInput();
                 } 
             }
@@ -2227,7 +2258,7 @@ let devInvincible = false;
         playSound('death'); 
         gameState = 'DEATH_FREEZE'; 
         if (musicTimeout) clearTimeout(musicTimeout); 
-        document.getElementById('fsBtn').style.display = 'block'; 
+        
     }
     function drawDiamond(ctx, x, y, size, filled) { ctx.beginPath(); ctx.moveTo(x, y - size); ctx.lineTo(x + size, y); ctx.lineTo(x, y + size); ctx.lineTo(x - size, y); ctx.closePath(); if (filled) ctx.fill(); else { ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke(); ctx.lineJoin = 'miter'; } }
 
@@ -2352,6 +2383,22 @@ let devInvincible = false;
         if (seed > 0.3) ligStem(ctx, x + w - 1.2, y + h - 2, y + h + 26);
     }
 
+    function drawFsButton() {
+        if (!fsAvailable) { FS_BTN.w = 0; return; }
+        const label = fsLabel(), b = FS_BTN;
+        ctx.textAlign = 'center';
+        if (T.print) {
+            ctx.font = font(15, 500, false, 'sc');
+            b.w = Math.ceil(ctx.measureText(label).width) + 16; b.h = THEME_BTN.h; b.y = THEME_BTN.y; b.x = THEME_BTN.x - b.w;
+            ctx.fillStyle = C.red; ctx.fillText(label, b.x + b.w / 2, b.y + 19);
+        } else {
+            ctx.font = font(13, 600);
+            b.w = Math.ceil(ctx.measureText(label).width) + 28; b.h = THEME_BTN.h; b.y = THEME_BTN.y; b.x = THEME_BTN.x - 8 - b.w;
+            pill(b.x, b.y, b.w, b.h, C.paper, C.line);
+            ctx.fillStyle = C.ink; ctx.fillText(label, b.x + b.w / 2, b.y + 20);
+        }
+    }
+
     function drawThemeButton() {
         const b = THEME_BTN;
         ctx.textAlign = 'center';
@@ -2401,6 +2448,7 @@ let devInvincible = false;
         ctx.textAlign = 'center'; ctx.fillStyle = C.red; ctx.font = font(15, 500, false, 'sc');
         ctx.fillText('Install', ib.x + ib.w / 2, ib.y + 19);
         drawThemeButton();
+        drawFsButton();
 
         const credit = 'Feedback > mensuratorgame@gmail.com  Samuel Reid Navarro  ·  ' + new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
         ctx.fillStyle = C.ink; ctx.textAlign = 'center';
@@ -2472,6 +2520,7 @@ let devInvincible = false;
         ctx.textAlign = 'center';
         ctx.fillText('Install', ib.x + ib.w / 2, ib.y + 20);
         drawThemeButton();
+        drawFsButton();
 
         const credit = 'Feedback > mensuratorgame@gmail.com  Samuel Reid Navarro  ·  ' + new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
         ctx.fillStyle = C.soft;
