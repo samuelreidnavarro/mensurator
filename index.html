@@ -980,14 +980,26 @@ let devInvincible = false;
         if (!gl) return off;
         canvasContainer.appendChild(cv);
         const vs = 'attribute vec2 p; varying vec2 v; void main(){ v = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }';
-        const fs = `precision mediump float;
-            uniform sampler2D uGame, uPaper, uNoise; uniform vec2 uRes; uniform float uMode, uGrain, uDensity;
+        // highp: the scroll offset grows large in the long modes, and mediump would make the paper jitter
+        const fs = `#ifdef GL_FRAGMENT_PRECISION_HIGH
+            precision highp float;
+            #else
+            precision mediump float;
+            #endif
+            uniform sampler2D uGame, uPaper, uNoise; uniform vec2 uRes, uScroll; uniform float uMode, uGrain, uDensity;
             varying vec2 v;
             void main() {
                 vec2 uv = vec2(v.x, 1.0 - v.y);
                 vec4 g = texture2D(uGame, uv);
-                vec3 paper = texture2D(uPaper, uv).rgb;
-                vec2 px = uv * uRes;
+                // The sheet moves with the camera, like reading along a page; the darkened edges stay on the screen
+                vec2 pv = uv + uScroll;
+                vec3 paper = texture2D(uPaper, fract(pv)).rgb;
+                if (uMode < 1.5) {
+                    vec2 ed = min(uv, 1.0 - uv) * vec2(1600.0, 800.0);
+                    float e = min(ed.x, ed.y), vig = e < 40.0 ? (40.0 - e) * 0.35 / 255.0 : 0.0;
+                    paper -= vec3(vig, vig, vig * 1.3);
+                }
+                vec2 px = pv * uRes;
                 float fine = texture2D(uNoise, px / 256.0 * 0.8).r;
                 float mid = texture2D(uNoise, px / 2048.0).g;
                 float a = g.a;
@@ -1031,23 +1043,34 @@ let devInvincible = false;
             };
         }
         function makePaper(p, w, h) {
-            const pc = document.createElement('canvas'); pc.width = w; pc.height = h;
-            const c = pc.getContext('2d'), img = c.createImageData(w, h), d = img.data;
+            const ox = Math.round(w / 8), oy = Math.round(h / 8), gw = w + ox, gh = h + oy; // generated with an overlap, folded back so the sheet tiles
+            const src = new Float32Array(gw * gh * 3);
             const k = w / 1600; // features keep their size whatever the resolution
             const fine = valueNoise(11, 1.6 * k, w, h), mid = valueNoise(12, 9 * k, w, h), big = valueNoise(13, 180 * k, w, h), fox = valueNoise(14, 40 * k, w, h);
             const plain = p.mode === 2;
-            for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-                const i = (y * w + x) * 4;
+            for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+                const i = (y * gw + x) * 3;
                 let r = p.paper[0], g = p.paper[1], b = p.paper[2];
                 if (!plain) {
                     const n = (big(x, y) - 0.5) * 22 + (mid(x, y) - 0.5) * 6 + (fine(x, y) - 0.5) * 5;
                     const laid = p.vellum ? (mid(x * 0.15, y * 2.5) - 0.5) * 7 : p.laid ? ((y / k) % 7 < 1 ? -3 : 0) + ((x / k) % 64 < 2 ? -4 : 0) : 0;
                     const wv = (mid(x * 0.3, y * 0.3) - 0.5) * 60 * k;
                     const f = Math.max(0, fox(x + wv, y - wv) * 0.7 + big(x * 2, y * 2) * 0.3 - (1 - (p.foxing || 0) * 2.6)) * 90;
-                    const edge = Math.min(x, y, w - x, h - y) / k, vig = edge < 40 ? (40 - edge) * 0.35 : 0;
-                    r += n + laid - f * 0.4 - vig; g += n + laid - f * 0.7 - vig; b += n * 1.2 + laid - f - vig * 1.3;
+                    r += n + laid - f * 0.4; g += n + laid - f * 0.7; b += n * 1.2 + laid - f;
                 } else if (hashf(x * 3.17 + y * 913.7) > 0.99995) { r = g = b = 40; } // dust specks in the scan
-                d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255;
+                src[i] = r; src[i + 1] = g; src[i + 2] = b;
+            }
+            const pc = document.createElement('canvas'); pc.width = w; pc.height = h;
+            const c = pc.getContext('2d'), img = c.createImageData(w, h), d = img.data;
+            const at = (x, y, ch) => src[(y * gw + x) * 3 + ch];
+            for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+                // near the left and top edges, blend in what lies past the right and bottom edges, so opposite edges meet
+                const tx = x < ox ? x / ox : 1, ty = y < oy ? y / oy : 1, i = (y * w + x) * 4;
+                for (let ch = 0; ch < 3; ch++) {
+                    const row = (yy) => at(x, yy, ch) * tx + (x < ox ? at(x + w, yy, ch) * (1 - tx) : 0);
+                    d[i + ch] = row(y) * ty + (y < oy ? row(y + h) * (1 - ty) : 0);
+                }
+                d[i + 3] = 255;
             }
             c.putImageData(img, 0, 0);
             return pc;
@@ -1062,6 +1085,7 @@ let devInvincible = false;
                 const paper = makePaper(t.post, Math.min(cv.width, 1600), Math.min(cv.height, 800));
                 gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, paperTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, paper);
                 gl.uniform2f(U('uRes'), cv.width, cv.height);
+                api.uScroll = U('uScroll');
                 gl.uniform1f(U('uMode'), t.post.mode); gl.uniform1f(U('uGrain'), t.post.grain); gl.uniform1f(U('uDensity'), t.post.density);
                 cv.style.display = 'block'; canvas.style.opacity = '0'; api.active = true;
             },
@@ -1069,6 +1093,8 @@ let devInvincible = false;
                 if (!api.active) return;
                 gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, gameTex);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+                const onPage = gameMode !== 'KART' && ['PLAY', 'PAUSE', 'SPLASH', 'DEATH_FREEZE'].includes(gameState);
+                gl.uniform2f(api.uScroll, onPage ? cameraX / W : 0, onPage ? cameraY / H : 0);
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             }
         };
