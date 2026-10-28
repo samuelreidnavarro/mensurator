@@ -524,12 +524,20 @@ let devInvincible = false;
         inputName = '';
         if (musicTimeout) clearTimeout(musicTimeout);
         resultAt = Date.now();
-        if (makesBoard(gameMode, player.score)) {
-            gameState = 'NAME_INPUT';
-            if (isTouchDevice) showMobileNameInput();
-        } else {
-            gameState = 'RESULT';
-        }
+        gameState = 'RESULT';
+        const mode = gameMode === 'ENDLESS' ? 'ENDLESS' : 'CLASSIC';
+        if ((gameMode !== 'CLASSIC' && gameMode !== 'ENDLESS') || !(player.score > 0)) return;
+        if (boards[mode]) { if (makesBoard(mode, player.score)) askName(); return; }
+        // Board not read yet: read it now; if it can't be read, ask anyway and let the server decide
+        const score = player.score;
+        loadLeaderboard(mode).then(() => {
+            if (gameState === 'RESULT' && player.score === score && (!boards[mode] || makesBoard(mode, score))) askName();
+        });
+    }
+
+    function askName() {
+        gameState = 'NAME_INPUT';
+        if (isTouchDevice) showMobileNameInput();
     }
 
     function showBoardAfterRun() {
