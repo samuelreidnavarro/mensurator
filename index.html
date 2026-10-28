@@ -290,7 +290,6 @@
             <button type="button" class="menu-btn" id="devEndlessJumpBtn" style="margin: 0; padding: 7px 16px;">WARP</button>
         </div>
         <button type="button" class="menu-btn ghost block" id="devLeaderboardBtn">Test: Nomen in Tabella</button>
-        <button type="button" class="menu-btn danger block" id="devResetLeaderboardBtn">Reset Leaderboard</button>
         <button type="button" class="menu-btn block" id="devCloseBtn">Claudere</button>
     </div>
 </div>
@@ -416,8 +415,6 @@
     });
     const devLeaderboardBtn = document.getElementById('devLeaderboardBtn');
     devLeaderboardBtn.addEventListener('click', () => devTestLeaderboard());
-    const devResetLeaderboardBtn = document.getElementById('devResetLeaderboardBtn');
-    devResetLeaderboardBtn.addEventListener('click', () => devResetLeaderboard());
     devCloseBtn.addEventListener('click', () => closeDevPanel());
     
     titleDevBtn.addEventListener('click', () => { 
@@ -464,24 +461,6 @@
         closeDevPanel();
     }
     
-    function devResetLeaderboard() {
-        if (confirm(`Are you sure you want to reset the ${currentLeaderboardMode} leaderboard? This will delete all entries!`)) {
-            leaderboard = [];
-            const codes = getDreamloCodes(currentLeaderboardMode);
-            const targetUrl = `http://dreamlo.com/lb/${codes.priv}/clear`;
-            const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-            
-            fetch(proxyUrl)
-            .then(response => {
-                if (response.ok) {
-                    alert(`${currentLeaderboardMode} Leaderboard has been reset.`);
-                    loadLeaderboard();
-                } else { alert('Failed to reset leaderboard.'); }
-            })
-            .catch(error => { alert('Error resetting leaderboard.'); });
-        }
-    }
-    
     const musicVolSlider = document.getElementById('musicVol');
     const fxVolSlider = document.getElementById('fxVol');
     const speedSlider = document.getElementById('speedSlider');
@@ -526,18 +505,13 @@ let devInvincible = false;
     let inputName = '';
     let showNameInput = false;
 
-    const DREAMLO_PUBLIC_CLASSIC = '69c672f28f40bc2f6084f817';
-    const DREAMLO_PRIVATE_CLASSIC = '_VKanEz7lkSQ2iLJrCvVrgTthj6suPakGd3nNlMedDUA';
-
-    const DREAMLO_PUBLIC_ENDLESS = '69c69bd88f40bc2f6086c41f';
-    const DREAMLO_PRIVATE_ENDLESS = 'jvDcnsBwJk6fya1GUA8-yQ_PSo9L5Oj0mj9WB6QeIvTQ';
-
-    const PROXY_URL = 'https://api.codetabs.com/v1/proxy?quest=';
+    const BOARD_URL = 'https://mensurator-scores.samreidn.workers.dev';
     let currentLeaderboardMode = 'CLASSIC'; 
     const BOARD_SIZE = 10;
     const boards = { CLASSIC: null, ENDLESS: null }; // null until the board has been read
     let resultAt = 0;
     const boardReadAt = {};
+    const savedAt = {};
 
     // A name is asked for only when the score would enter the top ten
     function makesBoard(mode, score) {
@@ -565,62 +539,33 @@ let devInvincible = false;
         loadLeaderboard();
     }
 
-    function getDreamloCodes(mode) {
-        if (mode === 'ENDLESS') return { pub: DREAMLO_PUBLIC_ENDLESS, priv: DREAMLO_PRIVATE_ENDLESS };
-        return { pub: DREAMLO_PUBLIC_CLASSIC, priv: DREAMLO_PRIVATE_CLASSIC };
+    function setBoard(mode, list) {
+        if (!Array.isArray(list)) return;
+        boards[mode] = list.slice(0, BOARD_SIZE);
+        if (mode === currentLeaderboardMode) leaderboard = boards[mode];
     }
 
     async function loadLeaderboard(mode = currentLeaderboardMode) {
-        let list = null;
         try {
-            const codes = getDreamloCodes(mode);
-            const targetUrl = `http://dreamlo.com/lb/${codes.pub}/json`;
-            const proxyUrl = `${PROXY_URL}${encodeURIComponent(targetUrl)}`;
-            
-            const response = await fetch(proxyUrl);
-
-            if (response.ok) {
-                const data = await response.json();
-                list = [];
-                if (data.dreamlo && data.dreamlo.leaderboard && data.dreamlo.leaderboard.entry) {
-                    const entries = Array.isArray(data.dreamlo.leaderboard.entry) 
-                        ? data.dreamlo.leaderboard.entry 
-                        : [data.dreamlo.leaderboard.entry];
-                    
-                    entries.forEach(entry => {
-                        list.push({
-                            name: entry.name,
-                            score: parseInt(entry.score),
-                            time: entry.seconds ? parseInt(entry.seconds) : 0
-                        });
-                    });
-                }
-            }
-        } catch (error) { console.log('Failed to load from Dreamlo:', error); }
-        
-        if (list) {
-            list.sort((a, b) => b.score - a.score);
-            boards[mode] = list.slice(0, BOARD_SIZE);
-        }
+            const response = await fetch(`${BOARD_URL}/?mode=${mode}`, { cache: 'no-store' });
+            // Right after a save, the server's answer is fresher than a read (reads can lag a minute)
+            if (response.ok && Date.now() - (savedAt[mode] || 0) > 60000) setBoard(mode, await response.json());
+        } catch (error) { console.log('Failed to load leaderboard:', error); }
         if (mode === currentLeaderboardMode) leaderboard = boards[mode] || [];
     }
 
     async function addToLeaderboard(name, score, time) {
-        if (!name || name.trim() === "") return;
-        const cleanName = name.trim().replace(/[^a-zA-Z0-9]/g, "");
-
+        const mode = gameMode === 'ENDLESS' ? 'ENDLESS' : 'CLASSIC';
+        const cleanName = String(name || '').trim().slice(0, 15);
+        if (!cleanName) return;
         try {
-            const codes = getDreamloCodes(gameMode);
-            const targetUrl = `http://dreamlo.com/lb/${codes.priv}/add/${encodeURIComponent(cleanName)}/${score}/${Math.floor(time)}`;
-            const proxyUrl = `${PROXY_URL}${encodeURIComponent(targetUrl)}`;
-            
-            const response = await fetch(proxyUrl);
-            if (response.ok) {
-                setTimeout(() => {
-                    loadLeaderboard(gameMode);
-                }, 500);
-            }
-        } catch (error) { console.log('Failed to add to Dreamlo:', error); }
+            const response = await fetch(BOARD_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode, name: cleanName, score, time: Math.floor(time) })
+            });
+            if (response.ok) { savedAt[mode] = Date.now(); setBoard(mode, await response.json()); }
+        } catch (error) { console.log('Failed to save score:', error); }
     }
 
     // --- Visual Style & Themes ---
