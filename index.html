@@ -540,11 +540,10 @@ let devInvincible = false;
         if (isTouchDevice) showMobileNameInput();
     }
 
-    function showBoardAfterRun() {
-        currentLeaderboardMode = gameMode === 'ENDLESS' ? 'ENDLESS' : 'CLASSIC';
-        leaderboard = boards[currentLeaderboardMode] || [];
-        gameState = 'LEADERBOARD';
-        loadLeaderboard();
+    // After a run: straight to the next run's start screen, not the board
+    function nextRunAfterResult() {
+        currentLevel = 0;
+        startGame();
     }
 
     function setBoard(mode, list) {
@@ -1548,17 +1547,17 @@ let devInvincible = false;
         }
 
         if (gameState === 'RESULT') {
-            if (!e.repeat && Date.now() - resultAt > 600) showBoardAfterRun();
+            if (!e.repeat && Date.now() - resultAt > 600) nextRunAfterResult();
             return;
         }
 
         if (gameState === 'NAME_INPUT') {
             if (e.key === 'Enter' && inputName.length > 0) {
                 addToLeaderboard(inputName, player.score, levelTime);
-                showBoardAfterRun();
+                nextRunAfterResult();
                 cleanupMobileOverlay();
             } else if (e.key === 'Escape') {
-                showBoardAfterRun();
+                nextRunAfterResult();
                 cleanupMobileOverlay();
             } else if (e.key === 'Backspace') {
                 inputName = inputName.slice(0, -1);
@@ -1675,13 +1674,13 @@ let devInvincible = false;
         saveBtn.addEventListener('click', () => {
             if (inputName.length > 0) {
                 addToLeaderboard(inputName, player.score, levelTime);
-                showBoardAfterRun();
+                nextRunAfterResult();
                 cleanupMobileOverlay();
             }
         });
         
         skipBtn.addEventListener('click', () => {
-            showBoardAfterRun();
+            nextRunAfterResult();
             cleanupMobileOverlay();
         });
         
@@ -1794,7 +1793,7 @@ let devInvincible = false;
         if (!tapArmed || e.touches.length) return;
         tapArmed = false;
         if (gameState === 'WIN') { e.preventDefault(); gameState = 'MENU'; }
-        else if (gameState === 'RESULT') { e.preventDefault(); if (Date.now() - resultAt > 600) showBoardAfterRun(); }
+        else if (gameState === 'RESULT') { e.preventDefault(); if (Date.now() - resultAt > 600) nextRunAfterResult(); }
         else if (gameState === 'DEATH_FREEZE') {
             e.preventDefault();
             if (gameMode === 'ENDLESS') {
@@ -1877,7 +1876,7 @@ let devInvincible = false;
                 gameState = 'MENU';
             }
         } else if (gameState === 'RESULT' && e.pointerType !== 'touch') {
-            if (Date.now() - resultAt > 600) showBoardAfterRun();
+            if (Date.now() - resultAt > 600) nextRunAfterResult();
         } else if (gameState === 'NAME_INPUT') {
             // Just make sure it's showing, do NOT clean it up!
             showMobileNameInput();
