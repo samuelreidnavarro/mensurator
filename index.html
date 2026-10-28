@@ -534,15 +534,46 @@ let devInvincible = false;
 
     const PROXY_URL = 'https://api.codetabs.com/v1/proxy?quest=';
     let currentLeaderboardMode = 'CLASSIC'; 
+    const BOARD_SIZE = 10;
+    const boards = { CLASSIC: null, ENDLESS: null }; // null until the board has been read
+    let resultAt = 0;
+    const boardReadAt = {};
+
+    // A name is asked for only when the score would enter the top ten
+    function makesBoard(mode, score) {
+        const b = boards[mode];
+        if (!b || !(score > 0)) return false;
+        return b.length < BOARD_SIZE || score > b[b.length - 1].score;
+    }
+
+    function endRun() {
+        inputName = '';
+        if (musicTimeout) clearTimeout(musicTimeout);
+        resultAt = Date.now();
+        if (makesBoard(gameMode, player.score)) {
+            gameState = 'NAME_INPUT';
+            if (isTouchDevice) showMobileNameInput();
+        } else {
+            gameState = 'RESULT';
+        }
+    }
+
+    function showBoardAfterRun() {
+        currentLeaderboardMode = gameMode === 'ENDLESS' ? 'ENDLESS' : 'CLASSIC';
+        leaderboard = boards[currentLeaderboardMode] || [];
+        gameState = 'LEADERBOARD';
+        loadLeaderboard();
+    }
 
     function getDreamloCodes(mode) {
         if (mode === 'ENDLESS') return { pub: DREAMLO_PUBLIC_ENDLESS, priv: DREAMLO_PRIVATE_ENDLESS };
         return { pub: DREAMLO_PUBLIC_CLASSIC, priv: DREAMLO_PRIVATE_CLASSIC };
     }
 
-    async function loadLeaderboard() {
+    async function loadLeaderboard(mode = currentLeaderboardMode) {
+        let list = null;
         try {
-            const codes = getDreamloCodes(currentLeaderboardMode);
+            const codes = getDreamloCodes(mode);
             const targetUrl = `http://dreamlo.com/lb/${codes.pub}/json`;
             const proxyUrl = `${PROXY_URL}${encodeURIComponent(targetUrl)}`;
             
@@ -550,14 +581,14 @@ let devInvincible = false;
 
             if (response.ok) {
                 const data = await response.json();
-                leaderboard = [];
+                list = [];
                 if (data.dreamlo && data.dreamlo.leaderboard && data.dreamlo.leaderboard.entry) {
                     const entries = Array.isArray(data.dreamlo.leaderboard.entry) 
                         ? data.dreamlo.leaderboard.entry 
                         : [data.dreamlo.leaderboard.entry];
                     
                     entries.forEach(entry => {
-                        leaderboard.push({
+                        list.push({
                             name: entry.name,
                             score: parseInt(entry.score),
                             time: entry.seconds ? parseInt(entry.seconds) : 0
@@ -567,8 +598,11 @@ let devInvincible = false;
             }
         } catch (error) { console.log('Failed to load from Dreamlo:', error); }
         
-        leaderboard.sort((a, b) => b.score - a.score);
-        leaderboard = leaderboard.slice(0, 10);
+        if (list) {
+            list.sort((a, b) => b.score - a.score);
+            boards[mode] = list.slice(0, BOARD_SIZE);
+        }
+        if (mode === currentLeaderboardMode) leaderboard = boards[mode] || [];
     }
 
     async function addToLeaderboard(name, score, time) {
@@ -583,7 +617,7 @@ let devInvincible = false;
             const response = await fetch(proxyUrl);
             if (response.ok) {
                 setTimeout(() => {
-                    loadLeaderboard();
+                    loadLeaderboard(gameMode);
                 }, 500);
             }
         } catch (error) { console.log('Failed to add to Dreamlo:', error); }
@@ -1114,6 +1148,11 @@ let devInvincible = false;
         let stats = ['Tempus: ' + Math.floor(levelTime / 60) + ':' + Math.floor(levelTime % 60).toString().padStart(2, '0'), 'Puncta: ' + player.score];
         if (gameMode === 'ENDLESS') stats.push('Spatium: ' + endlessDistance);
         ctx.fillText(stats.join('   ·   '), W / 2, 132);
+        if (gameState === 'RESULT') {
+            ctx.fillStyle = C.soft; ctx.font = font(12, 500);
+            ctx.fillText(isTouchDevice ? 'Tap to continue' : 'Press any key', W / 2, 300);
+            return;
+        }
 
         ctx.fillStyle = C.mark; ctx.font = font(14, 600);
         ctx.fillText('Inscribe nomen tuum:', W / 2, 196);
@@ -1542,9 +1581,7 @@ let devInvincible = false;
         if (gameState === 'DEATH_FREEZE') {
             if (!e.repeat) {
                 if (gameMode === 'ENDLESS') {
-                    gameState = 'NAME_INPUT';
-                    inputName = '';
-                    if (isTouchDevice) showMobileNameInput();
+                    endRun();
                 } else {
                     startGame();
                 }
@@ -1557,14 +1594,18 @@ let devInvincible = false;
             return;
         }
 
+        if (gameState === 'RESULT') {
+            if (!e.repeat && Date.now() - resultAt > 600) showBoardAfterRun();
+            return;
+        }
+
         if (gameState === 'NAME_INPUT') {
             if (e.key === 'Enter' && inputName.length > 0) {
                 addToLeaderboard(inputName, player.score, levelTime);
-                gameState = 'LEADERBOARD';
+                showBoardAfterRun();
                 cleanupMobileOverlay();
             } else if (e.key === 'Escape') {
-                gameState = 'LEADERBOARD';
-                loadLeaderboard();
+                showBoardAfterRun();
                 cleanupMobileOverlay();
             } else if (e.key === 'Backspace') {
                 inputName = inputName.slice(0, -1);
@@ -1681,14 +1722,13 @@ let devInvincible = false;
         saveBtn.addEventListener('click', () => {
             if (inputName.length > 0) {
                 addToLeaderboard(inputName, player.score, levelTime);
-                gameState = 'LEADERBOARD';
+                showBoardAfterRun();
                 cleanupMobileOverlay();
             }
         });
         
         skipBtn.addEventListener('click', () => {
-            gameState = 'LEADERBOARD';
-            loadLeaderboard();
+            showBoardAfterRun();
             cleanupMobileOverlay();
         });
         
@@ -1794,19 +1834,18 @@ let devInvincible = false;
     // Taps that move the game on: only a finger put down after the moment (not one still held from play) counts
     let tapArmed = false;
     window.addEventListener('touchstart', (e) => {
-        tapArmed = gameState === 'DEATH_FREEZE' || gameState === 'WIN';
+        tapArmed = gameState === 'DEATH_FREEZE' || gameState === 'WIN' || gameState === 'RESULT';
         if (gameState === 'SPLASH' && e.target !== canvas && !e.target.closest('.overlay')) advanceSplash();
     }, { passive: true });
     window.addEventListener('touchend', (e) => {
         if (!tapArmed || e.touches.length) return;
         tapArmed = false;
         if (gameState === 'WIN') { e.preventDefault(); gameState = 'MENU'; }
+        else if (gameState === 'RESULT') { e.preventDefault(); if (Date.now() - resultAt > 600) showBoardAfterRun(); }
         else if (gameState === 'DEATH_FREEZE') {
             e.preventDefault();
             if (gameMode === 'ENDLESS') {
-                gameState = 'NAME_INPUT';
-                inputName = '';
-                showMobileNameInput();
+                endRun();
             } else {
                 startGame();
             }
@@ -1859,9 +1898,7 @@ let devInvincible = false;
             if (gameState === 'WIN') {
                 gameState = 'MENU';
             } else if (gameMode === 'ENDLESS') {
-                gameState = 'NAME_INPUT';
-                inputName = '';
-                if (isTouchDevice) showMobileNameInput();
+                endRun();
             } else {
                 startGame();
             }
@@ -1886,6 +1923,8 @@ let devInvincible = false;
                 y >= closeBtnY && y <= closeBtnY + closeBtnSize) {
                 gameState = 'MENU';
             }
+        } else if (gameState === 'RESULT' && e.pointerType !== 'touch') {
+            if (Date.now() - resultAt > 600) showBoardAfterRun();
         } else if (gameState === 'NAME_INPUT') {
             // Just make sure it's showing, do NOT clean it up!
             showMobileNameInput();
@@ -1896,6 +1935,9 @@ let devInvincible = false;
         unlockAudio(); 
         previousState = 'PLAY';
         if (gameMode === 'KART') { kartStart(); return; }
+        // Read the board now so the end of the run knows whether the score makes it
+        const lbMode = gameMode === 'ENDLESS' ? 'ENDLESS' : 'CLASSIC';
+        if (gameMode !== 'GRADUS' && Date.now() - (boardReadAt[lbMode] || 0) > 30000) { boardReadAt[lbMode] = Date.now(); loadLeaderboard(lbMode); }
 
         // 1. If respawning from a Classic mode death, DO NOT reset time or score!
         if (gameState === 'DEATH_FREEZE' && gameMode === 'CLASSIC') { 
@@ -2061,7 +2103,7 @@ let devInvincible = false;
 
         for (let i = projectiles.length - 1; i >= 0; i--) {
             let p = projectiles[i]; p.x += p.vx * speedMult; let hit = false;
-            if (boss.active && boss.hp > 0 && checkCollision({x:p.x, y:p.y, w:8, h:8}, {x: boss.x-20, y: boss.y, w: 80, h: 80})) { boss.hp--; hit = true; playSound('bossHit'); spawnBlood(boss.x, boss.y + 20); if (boss.hp <= 0) { boss.active = false; player.score += 50; gameState = 'NAME_INPUT'; inputName = ''; if (musicTimeout) clearTimeout(musicTimeout); if (isTouchDevice) showMobileNameInput(); return; } }
+            if (boss.active && boss.hp > 0 && checkCollision({x:p.x, y:p.y, w:8, h:8}, {x: boss.x-20, y: boss.y, w: 80, h: 80})) { boss.hp--; hit = true; playSound('bossHit'); spawnBlood(boss.x, boss.y + 20); if (boss.hp <= 0) { boss.active = false; player.score += 50; endRun(); return; } }
             let checkList = currentLevelData.enemies.concat(currentLevelData.jumpingFlats).concat(currentLevelData.flyingEnemies);
             checkList.forEach(e => { if (!e.dead && checkCollision({x:p.x, y:p.y, w:8, h:8}, e)) { e.dead = true; hit = true; playSound('smash'); spawnBlood(e.x, e.y); } });
             if (hit || p.x > cameraX + 900 || p.x < cameraX - 100) projectiles.splice(i, 1);
@@ -2278,11 +2320,7 @@ let devInvincible = false;
                     if (musicTimeout) clearTimeout(musicTimeout);
                     gameState = 'SPLASH'; 
                 } else { 
-                    gameState = 'NAME_INPUT'; 
-                    inputName = '';
-                    if (musicTimeout) clearTimeout(musicTimeout); 
-                    
-                    if (isTouchDevice) showMobileNameInput();
+                    endRun();
                 } 
             }
         } else if (gameMode === 'ENDLESS' || gameMode === 'GRADUS') {
@@ -2921,7 +2959,7 @@ let devInvincible = false;
             }
         }
 
-        if (gameState === 'NAME_INPUT') {
+        if (gameState === 'NAME_INPUT' || gameState === 'RESULT') {
             drawNameInput();
         } else if (gameState === 'LEADERBOARD') {
             drawLeaderboard();
